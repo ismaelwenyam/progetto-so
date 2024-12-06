@@ -3,6 +3,8 @@
 
 #include <sys/sem.h>
 
+#define DIRETTORE_TO_EROGATORE_SEM_KEY 11112
+
 union semun {
 	int              val;    /* Value for SETVAL */
         struct semid_ds *buf;    /* Buffer for IPC_STAT, IPC_SET */
