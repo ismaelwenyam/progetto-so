@@ -8,18 +8,42 @@
 #include "services.h"
 #include "ticket.h"
 #include "semapi.h"
+#include "shmapi.h"
+#include "config_sim.h"
 
 const char *services[] = {IRP, ILR, PVB, PBP, APF, AOB};
+ConfigurationAdt configuration;
+
+void print_config (){
+	printf("simulation configuration\n");
+	printf("NOF_WORKER_SEATS %d\n", configuration.nofWorkerSeats);
+	printf("NOF_WORKERS %d\n", configuration.nofWorkers);
+	printf("NOF_USERS %d\n", configuration.nofUsers);
+	printf("SIM_DURATION %d\n", configuration.simDuration);
+	printf("N_NANO_SECS %d\n", configuration.nNanoSecs);
+	printf("NOF_PAUSE %d\n", configuration.nofPause);
+	printf("P_SERV_MIN %d\n", configuration.pServMin);
+	printf("P_SERV_MAX %d\n", configuration.pServMax);
+	printf("EXPLODE_THRESHOLD %d\n", configuration.explodeThreshold);
+}
 
 int main (int argc, char **argv){
+	
+	ConfigurationAdtPtr configPtr = init_config("config_sim.conf");
+	if (configPtr == NULL){
+		printf("error: direttore.init_config\n");
+		err_exit("error initializing configuration");
+	}
+	configuration = *configPtr;
+	print_config();
 	int direttoreErogatoreShmId, direttoreErogatoreSemId;
 	//creazione memoria condivisa tra direttore e erogatore ticket
-	if ((direttoreErogatoreShmId = shmget(IPC_PRIVATE, sizeof(TicketAdt) * NUMBER_OF_SERVICES , IPC_CREAT | S_IWUSR | S_IRUSR)) == -1){
+	if ((direttoreErogatoreShmId = shmget(DIRETTORE_TO_EROGATORE_SHM_KEY, sizeof(TicketAdt) * NUMBER_OF_SERVICES, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
 		printf("error: direttore.shmget\n");
 		err_exit(strerror(errno));
 	}
 	//creazione semaforo tra direttore e erogatore ticket
-	if ((direttoreErogatoreSemId = semget(IPC_PRIVATE, 1, IPC_CREAT | S_IWUSR | S_IRUSR)) == -1){
+	if ((direttoreErogatoreSemId = semget(DIRETTORE_TO_EROGATORE_SEM_KEY, 1, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
 		printf("error: direttore.semget\n");
 		err_exit(strerror(errno));
 	}
@@ -34,7 +58,6 @@ int main (int argc, char **argv){
 		err_exit(strerror(errno));
 	}
 	for (size_t i = 0; i < NUMBER_OF_SERVICES; i++){
-		//TODO Make serviceAvailable random and temp +- 50%
 		if (strcmp(services[i], IRP) == 0){
 			strcpy(tickets[i].servizio, IRP);
 			tickets[i].tempario = 10;
@@ -61,9 +84,6 @@ int main (int argc, char **argv){
 			tickets[i].serviceAvailable = true;	
 		}
 	}	
-	for (size_t i = 0; i < NUMBER_OF_SERVICES; i++){
-		printf("service: %s - temp: %d - available: %d\n", tickets[i].servizio, tickets[i].tempario, tickets[i].serviceAvailable);
-	}
 	
 	if (release_sem(direttoreErogatoreSemId, 0) == -1){
 		printf("error: direttore.release_sem\n");
@@ -76,7 +96,7 @@ int main (int argc, char **argv){
 	}
 	
 	//TODO usare key nei rispettivi header	
-	static char *newargv[] = {"0", "1"};
+	static char *newargv[] = { NULL };
         static char *newenviron[] = { NULL };
 	if (execve("./erogatore_ticket", newargv, newenviron) == -1){
 		printf("error occured %s\n", strerror(errno));
