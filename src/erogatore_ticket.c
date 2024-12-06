@@ -8,6 +8,7 @@
 #include "simerr.h"
 #include "ticket.h"
 #include "semapi.h"
+#include "shmapi.h"
 #include "services.h"
 
 
@@ -25,15 +26,18 @@ void usage (){
 		
 
 int main (int argc, char **argv){
-	if (argc < 3){
-		usage();
-		err_exit("erogatore ticket - Invalid arguments");
+	int semId, shmId;
+	if ((semId = semget(DIRETTORE_TO_EROGATORE_SEM_KEY, 0, 0)) == -1){
+		printf("error: erogatore_ticket.semget\n");
+		err_exit(strerror(errno));
 	}
-	int shmId = atoi(argv[1]);
-	int semId = atoi(argv[2]);
+	if ((shmId = shmget(DIRETTORE_TO_EROGATORE_SHM_KEY, 0, 0)) == -1){
+		printf("error: erogatore_ticket.shmget\n");
+		err_exit(strerror(errno));
+	}
 	// reserve semafore to access shared mem
 	if (reserve_sem(semId, 0) == -1){
-		printf("error.erogatore_ticket.reserve_sem\n");
+		printf("error: erogatore_ticket.reserve_sem\n");
 		err_exit(strerror(errno));
 	}
 	
@@ -41,19 +45,22 @@ int main (int argc, char **argv){
 	errno = 0;
 	availableServices = shmat(shmId, NULL, SHM_RND);	
 	if (errno != 0){
-		printf("error.erogatore_ticket.shmat\n");
+		printf("error: erogatore_ticket.shmat\n");
 		err_exit(strerror(errno));
-	}
+	}	
 
-	#ifdef DEBUG
+	//#ifdef DEBUG
 	//TODO stampa i servizi disponibili per il giorno
-	#endif
+	for (size_t i = 0; i < NUMBER_OF_SERVICES; i++){
+		printf("service: %s - temp: %d - available: %d\n", availableServices[i].servizio, availableServices[i].tempario, availableServices[i].serviceAvailable);
+	}
+	//#endif
 
 	// create message queue	
 	//Al giorno i+1 decidere se creare nuovamente la msgQueue o mantenere la coda del giorno i-1
 	int msgQueueId;
 	if ((msgQueueId = msgget(MSG_QUEUE_KEY, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
-		printf("error.erogatore_ticket.mssget\n");
+		printf("error.erogatore_ticket.msgget\n");
 		err_exit(strerror(errno));
 	}
 
@@ -76,7 +83,6 @@ int main (int argc, char **argv){
 			continue;
 		}
 		if (pid == 0){			/* child code */
-			//TODO 6 is the number of services, try make it more dynamic
 			for(size_t i = 0; i < NUMBER_OF_SERVICES; i++){
 				if(strcmp(ticketRequest.ticket.servizio, availableServices[i].servizio) == 0){
 					// service available for the day
@@ -91,6 +97,17 @@ int main (int argc, char **argv){
 			exit(EXIT_SUCCESS);
 		}
 		
+	}
+	
+	// release semafore
+	if (release_sem(semId, 0) == -1){
+		printf("error: erogatore_ticket.reserve_sem\n");
+		err_exit(strerror(errno));
+	}
+	
+	if (shmdt(availableServices) == -1){
+		printf("error: erogatore_ticket.shmdt\n");
+		err_exit(strerror(errno));
 	}
 	
 	
