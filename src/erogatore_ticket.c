@@ -71,11 +71,12 @@ int main (int argc, char **argv){
 	//TODO printf("server erogatore_ticket up and running\n");
 	#endif
 	while (1) {
-		if (msgrcv(msgQueueId, &ticketRequest, sizeof(ticketRequest.ticket) - sizeof(ticketRequest.mtype), 0, 0) == -1){
-			printf("error.erogatore_ticket.msgrcv\n");
+		if (msgrcv(msgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), 0, 0) == -1){
+			printf("error: %s - erogatore_ticket.msgrcv\n", strerror(errno));
 			// server don't have to stop
 			continue;
 		}
+		printf("erogatore_ticket.requested service: %s\n", ticketRequest.ticket.servizio);
 		pid = fork();
 		if (pid == -1){			
 			printf("error.erogatore_ticket.fork\n");	
@@ -88,7 +89,7 @@ int main (int argc, char **argv){
 					// service available for the day
 					ticketRequest.ticket.tempario = availableServices[i].tempario;
 					ticketRequest.ticket.serviceAvailable = availableServices[i].serviceAvailable;
-					if (msgsnd(msgQueueId, &ticketRequest, sizeof(ticketRequest.ticket) - sizeof(long), IPC_NOWAIT) == -1){
+					if (msgsnd(msgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), IPC_NOWAIT) == -1){
 						printf("error.erogatore_ticket.msgsnd\n");
 						break;
 					}
