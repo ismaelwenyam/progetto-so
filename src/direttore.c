@@ -11,10 +11,15 @@
 #include "shmapi.h"
 #include "config_sim.h"
 
-const char *services[] = {IRP, ILR, PVB, PBP, APF, AOB};
-ConfigurationAdt configuration;
 
-void print_config (){
+const char *services[] = {IRP, ILR, PVB, PBP, APF, AOB};
+
+void create_erogatore_ticket();
+void create_sportello();
+void create_operatore();
+void create_utente();
+
+void print_config (ConfigurationAdt configuration){
 	printf("simulation configuration\n");
 	printf("NOF_WORKER_SEATS %d\n", configuration.nofWorkerSeats);
 	printf("NOF_WORKERS %d\n", configuration.nofWorkers);
@@ -27,15 +32,9 @@ void print_config (){
 	printf("EXPLODE_THRESHOLD %d\n", configuration.explodeThreshold);
 }
 
-int main (int argc, char **argv){
-	
-	ConfigurationAdtPtr configPtr = init_config("config_sim.conf");
-	if (configPtr == NULL){
-		printf("error: direttore.init_config\n");
-		err_exit("error initializing configuration");
-	}
-	configuration = *configPtr;
-	print_config();
+int main (int argc, char **argv){	
+	ConfigurationAdt configuration = get_config();
+	print_config(configuration);
 	int direttoreErogatoreShmId, direttoreErogatoreSemId;
 	//creazione memoria condivisa tra direttore e erogatore ticket
 	if ((direttoreErogatoreShmId = shmget(DIRETTORE_TO_EROGATORE_SHM_KEY, sizeof(TicketAdt) * NUMBER_OF_SERVICES, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
@@ -91,15 +90,12 @@ int main (int argc, char **argv){
 	}
 	
 	if (shmdt(tickets) == -1){
-		printf("error: direttore.reserve_sem\n");
+		printf("error: direttore.shmdt\n");
 		err_exit(strerror(errno));
 	}
+
+	///TODO remove pause
+	pause();
 	
-	//TODO usare key nei rispettivi header	
-	static char *newargv[] = { NULL };
-        static char *newenviron[] = { NULL };
-	if (execve("./erogatore_ticket", newargv, newenviron) == -1){
-		printf("error occured %s\n", strerror(errno));
-	}	
 }
 

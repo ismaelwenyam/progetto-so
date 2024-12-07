@@ -13,9 +13,7 @@ struct configuration {
 	int explodeThreshold;
 };
 
-extern ConfigurationAdt configuration;
 
-ConfigurationAdtPtr init_config (const char const *configPath);
-void ds_config (ConfigurationAdtPtr configPtr);
+ConfigurationAdt get_config ();
 
 #endif
