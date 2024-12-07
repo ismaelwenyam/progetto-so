@@ -2,6 +2,7 @@
 #define SEMAPI_H
 
 #include <sys/sem.h>
+#include <sys/msg.h>
 
 #define DIRETTORE_TO_EROGATORE_SEM_KEY 11112
 
