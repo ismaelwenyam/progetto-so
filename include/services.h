@@ -9,6 +9,5 @@
 #define APF "apf"		/* Acquisto prodotti finanziari */
 #define AOB "aob"		/* Acquisto orologi e braccialetti */
 
-extern const char *services[];
 
 #endif

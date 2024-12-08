@@ -12,7 +12,6 @@
 #include "config_sim.h"
 
 
-const char *services[] = {IRP, ILR, PVB, PBP, APF, AOB};
 
 void create_erogatore_ticket();
 void create_sportello();
@@ -33,6 +32,7 @@ void print_config (ConfigurationAdt configuration){
 }
 
 int main (int argc, char **argv){	
+	const char *services[] = {IRP, ILR, PVB, PBP, APF, AOB};
 	ConfigurationAdt configuration = get_config();
 	print_config(configuration);
 	int direttoreErogatoreShmId, direttoreErogatoreSemId;
@@ -93,9 +93,6 @@ int main (int argc, char **argv){
 		printf("error: direttore.shmdt\n");
 		err_exit(strerror(errno));
 	}
-
-	///TODO remove pause
-	pause();
 	
 }
 
