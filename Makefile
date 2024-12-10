@@ -2,7 +2,7 @@
 CC = gcc
 INCLUDES = -I./include
 CFLAGS = -Wvla -Wextra -Werror -D_GNU_SOURCE
-EXEC = simulation erogatore_ticket utente
+EXEC = simulation erogatore_ticket utente operatore
 
 ifdef DEBUG
     CFLAGS += -DDEBUG -g
@@ -22,6 +22,9 @@ erogatore_ticket: src/erogatore_ticket.o src/semapi.o src/simerr.o
 	$(CC) -o $@ $^
 
 utente: src/utente.o src/config_sim.o src/semapi.o src/simerr.o
+	$(CC) -o $@ $^
+
+operatore: src/operatore.o src/config_sim.o src/semapi.o src/simerr.o
 	$(CC) -o $@ $^
 
 clean:
