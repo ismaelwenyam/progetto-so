@@ -11,6 +11,7 @@ struct configuration {
 	int pServMin;
 	int pServMax;
 	int explodeThreshold;
+	int nRequests;
 };
 
 

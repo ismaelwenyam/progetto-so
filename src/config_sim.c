@@ -7,7 +7,7 @@
 
 ConfigurationAdt get_config(){
 	ConfigurationAdt configuration;
-	printf("init_config\n");
+	printf("get_config\n");
 	//if (configPath == NULL) return NULL;	
 
 	FILE *configurationFile = fopen("config_sim.conf", "r");
@@ -39,8 +39,10 @@ ConfigurationAdt get_config(){
 			configuration.pServMin = atoi(value);	
 		} else if (strcmp(key, "p_serv_max") == 0) {	
 			configuration.pServMax = atoi(value);	
-		} else {
+		} else if (strcmp(key, "explode_threshold") == 0) {
 			configuration.explodeThreshold = atoi(value);	
+		} else {
+			configuration.nRequests = atoi(value);
 		}
 	}
 		
