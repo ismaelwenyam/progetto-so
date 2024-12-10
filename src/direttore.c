@@ -29,6 +29,7 @@ void print_config (ConfigurationAdt configuration){
 	printf("P_SERV_MIN %d\n", configuration.pServMin);
 	printf("P_SERV_MAX %d\n", configuration.pServMax);
 	printf("EXPLODE_THRESHOLD %d\n", configuration.explodeThreshold);
+	printf("N_REQUESTS %d\n", configuration.nRequests);
 }
 
 int main (int argc, char **argv){	
