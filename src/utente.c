@@ -13,48 +13,68 @@
 
 
 int main (int argc, char **argv){
-	const char *services[] = {IRP, ILR, PVB, PBP, APF, AOB};
+	char *services[] = {IRP, ILR, PVB, PBP, APF, AOB};
 	ConfigurationAdt configuration = get_config();
-	printf("utente.configuration.PservMin: %d\n", configuration.pServMin);
-	printf("utente.configuration.PservMax: %d\n", configuration.pServMax);
+	printf("utente.%d.configuration.p_serv_min: %d\n", getpid(), configuration.pServMin);
+	printf("utente.%d.configuration.p_serv_max: %d\n", getpid(), configuration.pServMax);
+	printf("utente.%d.configuration.n_requests: %d\n", getpid(), configuration.nRequests);
 	srand(time(NULL));
-	int choice = rand() % configuration.pServMax + configuration.pServMin;
-	printf("utente.choice: %d\n", choice);
-	printf("utente.office? : %s\n", choice >= (configuration.pServMin + configuration.pServMax) / 2 - 1 ? "true" : "false");
-	int serviceChoice = rand() % NUMBER_OF_SERVICES;
-	printf("utente.service.choice: %s\n", services[serviceChoice]);
-	
 	// decidere se andare o meno all'ufficio postale
+	int range = (configuration.pServMin + configuration.pServMax) / 2 - 1;
+	int choice = rand() % configuration.pServMax + configuration.pServMin;
+	printf("utente.%d.going to office? : %s\n", getpid(), choice >= range? "true" : "false");
+	if (choice < range){
+		//TODO user not going to post office go to end of the day
+		exit(EXIT_FAILURE); // only for testing purpose
+	}
+	int nRequests = rand() % configuration.nRequests + 1;
+	char **servicesList = malloc(sizeof(char) * 4 * nRequests);
+	if (servicesList == NULL){
+		printf("utente.pid.%d.malloc\n", getpid());
+		err_exit(strerror(errno));
+	}
 	// decidere di quale servizio ha bisogno
-	// scegliere l'orario
+	for (int i = 0; i < nRequests; i++){
+		int serviceChoice = rand() % NUMBER_OF_SERVICES;
+		servicesList[i] = services[serviceChoice];
+	}
+	printf("Desired services from user\n");	
+	for (int i = 0; i < nRequests; i++){
+		printf("%s\n", servicesList[i]);
+	}
+	// TODO scegliere l'orario
+
 	// Fare richiesta all'erogatore per ticket
 	int msgQueueId;
 	if ((msgQueueId = msgget(MSG_QUEUE_KEY, 0)) == -1){
 		printf("error: utente.%d.msgget\n", getpid());
 		err_exit(strerror(errno));
 	}
+	for (int i = 0; i < nRequests; i++){
 	
-	TicketAdt ticket;
-	strcpy(ticket.servizio, argv[1]);
+		TicketAdt ticket;
+		strcpy(ticket.servizio, servicesList[i]);
 		
-	TicketRequestAdt ticketRequest;
-	ticketRequest.mtype = getpid();
-	ticketRequest.ticket = ticket;
+		TicketRequestAdt ticketRequest;
+		ticketRequest.mtype = getpid();
+		ticketRequest.ticket = ticket;
+
 	
-	if (msgsnd(msgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), IPC_NOWAIT) == -1){
-		printf("error: utente.%d.msgsnd\n", getpid());
-		err_exit(strerror(errno));
+		if (msgsnd(msgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), IPC_NOWAIT) == -1){
+			printf("error: utente.%d.msgsnd\n", getpid());
+			err_exit(strerror(errno));
+		}
+	
+		if (msgrcv(msgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), getpid(), 0) == -1){
+			printf("error: utente.%d.msgrcv\n", getpid());
+			err_exit(strerror(errno));
+		}
+	
+		printf("utente.%d.service: %s available: %s temp: %d\n", getpid(), ticketRequest.ticket.servizio, ticketRequest.ticket.serviceAvailable ? "true" : "false", ticketRequest.ticket.tempario);
+		// Recarsi allo sportello e attendere il proprio turno
 	}
 	
-	if (msgrcv(msgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), getpid(), 0) == -1){
-		printf("error: utente.%d.msgrcv\n", getpid());
-		err_exit(strerror(errno));
-	}
 	
-	printf("utente.%d.service: %s available: %s temp: %d\n", getpid(), argv[1], ticketRequest.ticket.serviceAvailable ? "true" : "false", ticketRequest.ticket.tempario);
-	
-	
-	// Recarsi allo sportello e attendere il proprio turno
 
 
 
@@ -64,7 +84,7 @@ int main (int argc, char **argv){
 
 
 
-
+	//TODO free servicesList at the end of the day
 
 
 }
