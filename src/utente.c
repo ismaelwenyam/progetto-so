@@ -9,11 +9,11 @@
 #include "ticket.h"
 #include "semapi.h"
 #include "shmapi.h"
+#include "msgapi.h"
 #include "config_sim.h"
 
-
-int main (int argc, char **argv){
-	char *services[] = {IRP, ILR, PVB, PBP, APF, AOB};
+void draft () {
+        char *services[] = {IRP, ILR, PVB, PBP, APF, AOB};
 	ConfigurationAdt configuration = get_config();
 	printf("utente.%d.configuration.p_serv_min: %d\n", getpid(), configuration.pServMin);
 	printf("utente.%d.configuration.p_serv_max: %d\n", getpid(), configuration.pServMax);
@@ -87,4 +87,32 @@ int main (int argc, char **argv){
 	//TODO free servicesList at the end of the day
 
 
+
+
+}
+
+int main (int argc, char **argv){
+	log_time();
+	printf("utente.pid.%d\n", getpid());	
+	log_time();
+	printf("utente.pid.%d.start initialization...\n", getpid());
+	int msgQueueId;
+	if ((msgQueueId = msgget(PROCESS_TO_DIRECTOR_MSG_KEY, 0)) == -1){
+		log_time();
+		printf("utente.%d.msgget.ipcr_creat.failed!\n", getpid());
+	}
+	//TODO remove
+	sleep(3);
+	ProcessInfoAdt pia;
+	pia.pid = getpid();
+	strcpy(pia.mtext, READY);
+	MsgAdt msg;
+	msg.mtype = 4;
+	msg.piAdt = pia;
+	if (msgsnd(msgQueueId, &msg, sizeof(msg) - sizeof(long), 0) == -1){
+		printf("erogatore.pid.%d.msgsnd.failed!\n", getpid());
+		err_exit(strerror(errno));
+	}
+	log_time();
+	printf("utente.pid.%d.started\n", getpid());	
 }
