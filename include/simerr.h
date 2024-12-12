@@ -4,7 +4,6 @@
 #include <errno.h>
 #include <string.h>
 
-
 void err_exit(char *err);
 
 #endif
