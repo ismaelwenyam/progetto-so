@@ -6,9 +6,11 @@
 #include <sys/msg.h>
 
 #include "simerr.h"
+#include "logapi.h"
 #include "ticket.h"
 #include "semapi.h"
 #include "shmapi.h"
+#include "msgapi.h"
 #include "services.h"
 
 
@@ -23,10 +25,9 @@ void print_available_services (int argc, char **argv){
 void usage (){
 	printf("Not enough arguments. i.e: ./erogatore_ticket [SHMID] [SEMID]\n");
 }
-		
 
-int main (int argc, char **argv){
-	int semId, shmId;
+void draft () {
+        int semId, shmId;
 	if ((semId = semget(DIRETTORE_TO_EROGATORE_SEM_KEY, 0, 0)) == -1){
 		printf("error: erogatore_ticket.semget\n");
 		err_exit(strerror(errno));
@@ -111,5 +112,43 @@ int main (int argc, char **argv){
 		err_exit(strerror(errno));
 	}
 	
+
+
+
+}
+		
+
+int main (int argc, char **argv){
+	slog(EROGATORE, "erogatore_ticket.pid.%d", getpid());	
+	slog(EROGATORE, "erogatore_ticket.pid.%d.init initialization", getpid());
+	int msgQueueId, erogatoreSemId;
+	if ((msgQueueId = msgget(PROCESS_TO_DIRECTOR_MSG_KEY, 0)) == -1){
+		slog(EROGATORE, "erogatore_ticket.pid.%d.msgget.failed!", getpid());
+		err_exit(strerror(errno));
+	}
+	slog(EROGATORE, "erogatore_ticket.pid.%d.msgget.process_to_director.ok!", getpid());
+	if ((erogatoreSemId = semget(EROGATORE_SEM_KEY, 0, 0)) == -1){
+		slog(EROGATORE, "erogatore_ticket.pid.%d.semget.failed!", getpid());
+		err_exit(strerror(errno));
+	}
+	slog(EROGATORE, "erogatore_ticket.pid.%d.semget.erogatore_sem.ok!", getpid());
+	slog(EROGATORE, "erogatore_ticket.pid.%d.initialization.done!", getpid());
+	ProcessInfoAdt pia;
+	pia.pid = getpid();
+	strcpy(pia.mtext, READY);
+	MsgAdt msg;
+	msg.mtype = 1;
+	msg.piAdt = pia;
+	if (msgsnd(msgQueueId, &msg, sizeof(msg) - sizeof(long), 0) == -1){
+		slog(EROGATORE, "erogatore.pid.%d.msgsnd.failed!", getpid());
+		err_exit(strerror(errno));
+	}
+	slog(EROGATORE, "erogatore_ticket.pid.%d.msgsnd.director notified status:ready.done!", getpid());
+	slog(EROGATORE, "erogatore_ticket.pid.%d.reserving_sem...\n", getpid());
+	if (reserve_sem(erogatoreSemId, 0) == -1){
+		slog(EROGATORE, "erogatore.pid.%d.reserve_sem.failed!", getpid());
+		err_exit(strerror(errno));
+	}
+	slog(EROGATORE, "erogatore.pid.%d.started", getpid());	
 	
 }
