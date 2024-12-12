@@ -7,11 +7,8 @@
 
 ConfigurationAdt get_config(){
 	ConfigurationAdt configuration;
-	printf("get_config\n");
-	//if (configPath == NULL) return NULL;	
 
 	FILE *configurationFile = fopen("config_sim.conf", "r");
-	//if (configurationFile == NULL) return NULL;
 
 	char line[256];
 	int lineNum = 0;
