@@ -16,8 +16,8 @@ struct statistics {
 	int activeOperatorsDaily;			/* il numero di operatori attivi durante la giornata */
 	int activeOperatorsSimulation;			/* il numero di operatori attivi durante la simulazione */
 	float averageBreaksDaily;			/* il numero medio di pause effettuate nella giornata */
-	int totalBreaksSimulation			/* totale di pause effettuate durante la simulazione */
-	int operatorToCounterRatio			/* il rapporto fra operatori disponibili e sportelli esistenti, per ogni sportello per ogni giornata */
+	int totalBreaksSimulation;			/* totale di pause effettuate durante la simulazione */
+	int operatorToCounterRatio;			/* il rapporto fra operatori disponibili e sportelli esistenti, per ogni sportello per ogni giornata */
 };
 
 #endif
