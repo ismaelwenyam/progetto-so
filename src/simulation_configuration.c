@@ -2,13 +2,17 @@
 #include <stdlib.h>
 
 #include "simerr.h"
-#include "config_sim.h"
+#include "simulation_configuration.h"
 
 
 ConfigurationAdt get_config(){
 	ConfigurationAdt configuration;
 
-	FILE *configurationFile = fopen("config_sim.conf", "r");
+	FILE *configurationFile = fopen("simulation_configuration.conf", "r");
+	if (configurationFile == NULL){
+		printf("error in opening configuration file\n");
+		err_exit(strerror(errno));
+	}
 
 	char line[256];
 	int lineNum = 0;
@@ -38,8 +42,10 @@ ConfigurationAdt get_config(){
 			configuration.pServMax = atoi(value);	
 		} else if (strcmp(key, "explode_threshold") == 0) {
 			configuration.explodeThreshold = atoi(value);	
-		} else {
+		} else if (strcmp(key, "n_requests") == 0) {
 			configuration.nRequests = atoi(value);
+		} else {
+			configuration.nNewUsers = atoi(value);
 		}
 	}
 		
