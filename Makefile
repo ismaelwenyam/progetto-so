@@ -15,19 +15,25 @@ src/%.o: src/%.c
 	$(CC) $(INCLUDES) $(CFLAGS) -c $< -o $@
 
 # Link degli eseguibili
-direttore: src/direttore.o src/config_sim.o src/semapi.o src/simerr.o src/logapi.o
+direttore: src/direttore.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o
+	$(CC) -o $@ $^
+
+erogatore_ticket: src/erogatore_ticket.o src/semapi.o src/simerr.o src/logapi.o src/simulation_configuration.o
+	$(CC) -o $@ $^
+
+utente: src/utente.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o
 	$(CC) -o $@ $^
 
 erogatore_ticket: src/erogatore_ticket.o src/semapi.o src/simerr.o src/logapi.o
 	$(CC) -o $@ $^
 
-utente: src/utente.o src/config_sim.o src/semapi.o src/simerr.o src/logapi.o
+utente: src/utente.o src/o src/semapi.o src/simerr.o src/logapi.o
 	$(CC) -o $@ $^
 
 sportello: src/sportello.o src/simerr.o src/logapi.o
 	$(CC) -o $@ $^
 
-operatore: src/operatore.o src/config_sim.o src/semapi.o src/simerr.o src/logapi.o
+operatore: src/operatore.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o
 	$(CC) -o $@ $^
 
 clean:

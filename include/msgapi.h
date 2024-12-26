@@ -3,28 +3,24 @@
 
 #include <sys/msg.h>
 
-#define PROCESS_TO_DIRECTOR_MSG_KEY 11111
-#define READY "ready"
-#define ROLE "role"
-#define MSG_LEN 256
+#define DIR_MESSAGE_QUEUE_KEY 11111
+#define TICKET_MESSAGE_QUEUE_KEY 11112
+#define SERVICE_MESSAGE_QUEUE_KEY 11113
 
 //groups
-#define EROGATORE_GROUP 1
-#define SPORTELLO_GROUP 2
-#define OPERATORE_GROUP 3
-#define UTENTE_GROUP 4
+#define DIRETTORE_GROUP 1
+#define EROGATORE_GROUP 2
+#define SPORTELLO_GROUP 3
+#define OPERATORE_GROUP 4
+#define UTENTE_GROUP 5
 
-typedef struct msg MsgAdt, *MsgAdtPtr;
-typedef struct processInfo ProcessInfoAdt, *ProcessInfoAdtPtr;
+//message code
+#define ROLE "role"
 
-struct processInfo {
-	int pid;
-	char mtext[MSG_LEN];
-};
+typedef struct msgbuf MsgBuf;
 
-struct msg {
-	long mtype;		/* groups - 1-> erogatore - 2-> sportello - 3-> operatore - 4-> utente */
-	ProcessInfoAdt piAdt;
-};
+
+
 
 #endif
+

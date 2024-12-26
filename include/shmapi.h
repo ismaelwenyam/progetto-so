@@ -3,6 +3,7 @@
 
 #include <sys/shm.h>
 
-#define DIRETTORE_TO_EROGATORE_SHM_KEY 11111
+#define SERVICE_SHARED_MEMORY 11111
+#define STATISTICS_SHARED_MEMORY 11112
 
 #endif

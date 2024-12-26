@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <sys/shm.h>
 #include <sys/msg.h>
+#include <signal.h>
 
 #include "simerr.h"
 #include "logapi.h"
@@ -12,6 +13,7 @@
 #include "shmapi.h"
 #include "msgapi.h"
 #include "services.h"
+#include "simulation_configuration.h"
 
 
 void print_available_services (int argc, char **argv){
@@ -26,129 +28,123 @@ void usage (){
 	printf("Not enough arguments. i.e: ./erogatore_ticket [SHMID] [SEMID]\n");
 }
 
-void draft () {
-        int semId, shmId;
-	if ((semId = semget(DIRETTORE_TO_EROGATORE_SEM_KEY, 0, 0)) == -1){
-		printf("error: erogatore_ticket.semget\n");
+int main (int argc, char **argv){
+	ConfigurationAdt configuration = get_config();
+	slog(EROGATORE, "erogatore_ticket.pid.%d", getpid());	
+	slog(EROGATORE, "erogatore_ticket.pid.%d.init initialization", getpid());
+	int resourceCreationSemId, erogatoreSemId, ticketsMsgQueueId, servicesShmSemId, servicesShmId;
+	if ((resourceCreationSemId = semget(RESOURCE_CREATION_SYNC_SEM_KEY, 0, 0)) == -1){
+		slog(EROGATORE, "erogatore_ticket.pid.%d.semget.erogatore_sync_sem.failed!", getpid());
 		err_exit(strerror(errno));
 	}
-	if ((shmId = shmget(DIRETTORE_TO_EROGATORE_SHM_KEY, 0, 0)) == -1){
-		printf("error: erogatore_ticket.shmget\n");
+	slog(EROGATORE, "erogatore_ticket.pid.%d.resourceCreationSemId.%d", getpid(), resourceCreationSemId);
+	if (reserve_sem(resourceCreationSemId, 0) == -1){
+		slog(EROGATORE, "erogatore_ticket.pid.%d.reserve_sem.resource creation sem.failed!", getpid());
+		err_exit(strerror(errno));
+	}	
+	if ((ticketsMsgQueueId = msgget(TICKET_MESSAGE_QUEUE_KEY, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
+		slog(EROGATORE, "erogatore_ticket.pid.%d.msgget.ipc_creat.tickets message queue.failed!", getpid());
 		err_exit(strerror(errno));
 	}
-	// reserve semafore to access shared mem
-	if (reserve_sem(semId, 0) == -1){
-		printf("error: erogatore_ticket.reserve_sem\n");
-		err_exit(strerror(errno));
-	}
-	
-	TicketAdtPtr availableServices;		
-	errno = 0;
-	availableServices = shmat(shmId, NULL, SHM_RND);	
-	if (errno != 0){
-		printf("error: erogatore_ticket.shmat\n");
+	slog(EROGATORE, "erogatore_ticket.pid.%d.tickets msg queue.created.ok!", getpid());
+	if (release_sem(resourceCreationSemId, 0) == -1){
+		slog(EROGATORE, "erogatore_ticket.pid.%d.release_sem.resource creation sem.failed!", getpid());
 		err_exit(strerror(errno));
 	}	
 
-	//#ifdef DEBUG
-	//TODO stampa i servizi disponibili per il giorno
-	for (size_t i = 0; i < NUMBER_OF_SERVICES; i++){
-		printf("service: %s - temp: %d - available: %d\n", availableServices[i].servizio, availableServices[i].tempario, availableServices[i].serviceAvailable);
-	}
-	//#endif
-
-	// create message queue	
-	//Al giorno i+1 decidere se creare nuovamente la msgQueue o mantenere la coda del giorno i-1
-	int msgQueueId;
-	if ((msgQueueId = msgget(MSG_QUEUE_KEY, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
-		printf("error.erogatore_ticket.msgget\n");
+	if ((erogatoreSemId = semget(EROGATORE_SYNC_SEM, 0, 0)) == -1){
+		slog(EROGATORE, "erogatore_ticket.pid.%d.semget.erogatore_sync_sem.failed!", getpid());
+		err_exit(strerror(errno));
+	}	
+	
+	if ((servicesShmSemId = semget(SERVICES_SHM_SEM_KEY, 0, 0)) == -1){
+		slog(EROGATORE, "erogatore_ticket.pid.%d.semget.erogatore_sync_sem.failed!", getpid());
+		err_exit(strerror(errno));
+	}	
+	
+	if ((servicesShmId = shmget(SERVICE_SHARED_MEMORY, 0, 0)) == -1){
+		slog(EROGATORE, "erogatore_ticket.pid.%d.shmget.service_shared_memory.failed!", getpid());
 		err_exit(strerror(errno));
 	}
-
-	//start server
+	slog(EROGATORE, "erogatore_ticket.pid.%d.initialization done!", getpid());
+	slog(EROGATORE, "erogatore_ticket.pid.%d.waiting for simulation to start", getpid());	
+	int days = 0;
 	pid_t pid;
 	TicketRequestAdt ticketRequest;
-	#ifdef DEBUG
-	//TODO printf("server erogatore_ticket up and running\n");
-	#endif
-	while (1) {
-		if (msgrcv(msgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), 0, 0) == -1){
-			printf("error: %s - erogatore_ticket.msgrcv\n", strerror(errno));
-			// server don't have to stop
-			continue;
+	TicketAdtPtr ticketsPtr;
+	while (days < configuration.simDuration){
+		if (reserve_sem(erogatoreSemId, 0) == -1){
+			slog(EROGATORE, "erogatore_ticket.pid.%d.reserve_sem.erogatore_sync_sem.semun.0.failed!", getpid());
+			err_exit(strerror(errno));
 		}
-		printf("erogatore_ticket.requested service: %s\n", ticketRequest.ticket.servizio);
+		slog(EROGATORE, "erogatore_ticket.pid.%d.day: %d", getpid(), days+1);
+		slog(EROGATORE, "erogatore_ticket.pid.%d.live and waiting requests", getpid());
 		pid = fork();
-		if (pid == -1){			
-			printf("error.erogatore_ticket.fork\n");	
-			// TODO if the fork doesn't work the parent has to answer
-			continue;
-		}
+		if (pid == -1){
+			slog(EROGATORE, "erogatore_ticket.pid.%d.fork.failed!", getpid());
+			err_exit(strerror(errno));
+		}	
 		if (pid == 0){			/* child code */
-			for(size_t i = 0; i < NUMBER_OF_SERVICES; i++){
-				if(strcmp(ticketRequest.ticket.servizio, availableServices[i].servizio) == 0){
-					// service available for the day
-					ticketRequest.ticket.tempario = availableServices[i].tempario;
-					ticketRequest.ticket.serviceAvailable = availableServices[i].serviceAvailable;
-					if (msgsnd(msgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), IPC_NOWAIT) == -1){
-						printf("error.erogatore_ticket.msgsnd\n");
+			while (1){
+				if (msgrcv(ticketsMsgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), EROGATORE_GROUP, 0) == -1){
+					slog(EROGATORE, "erogatore_ticket.pid.%d.msgrcv.tickets msg queue.failed!", getpid());
+					err_exit(strerror(errno));
+				}	
+				if (reserve_sem(servicesShmSemId, 0) == -1){
+					slog(EROGATORE, "erogatore_ticket.pid.%d.reserve_sem.services shm sem.failed!", getpid());
+					err_exit(strerror(errno));
+				}
+				errno = 0;
+				ticketsPtr = shmat(servicesShmId, NULL, SHM_RND);
+				if (errno != 0){
+					slog(EROGATORE, "erogatore_ticket.pid.%d.shmat.services shm.failed", getpid());	
+					err_exit(strerror(errno));
+				}
+				int i = 0;
+				while (i < NUMBER_OF_SERVICES){
+					if (strcmp(ticketsPtr[i].servizio, ticketRequest.ticket.servizio) == 0){
+						ticketRequest.ticket = ticketsPtr[i];
 						break;
 					}
+					i++;
 				}
+				//TODO impostare il tempario a +- 50% del valore iniziale
+				if (release_sem(servicesShmSemId, 0) == -1){
+					slog(EROGATORE, "erogatore_ticket.pid.%d.release_sem.services shm sem.failed!", getpid());
+					err_exit(strerror(errno));
+				}
+				if (shmdt(ticketsPtr) == -1){
+					slog(EROGATORE, "erogatore_ticket.pid.%d.shmdt.services shm.failed!", getpid());
+					return -1;
+				}
+				if (msgsnd(ticketsMsgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), 0) == -1){
+					slog(EROGATORE, "erogatore_ticket.pid.%d.msgsnd.tickets msg queue.failed!", getpid());
+					err_exit(strerror(errno));
+				} 
 			}
 			exit(EXIT_SUCCESS);
 		}
-		
-	}
-	
-	// release semafore
-	if (release_sem(semId, 0) == -1){
-		printf("error: erogatore_ticket.reserve_sem\n");
-		err_exit(strerror(errno));
-	}
-	
-	if (shmdt(availableServices) == -1){
-		printf("error: erogatore_ticket.shmdt\n");
-		err_exit(strerror(errno));
-	}
-	
+						/* parent code */
+		if (reserve_sem(erogatoreSemId, 2) == -1){
+			slog(EROGATORE, "erogatore_ticket.pid.%d.reserve_sem.erogatore_sync_sem.semun.2.failed!", getpid());
+			err_exit(strerror(errno));
+		}
+		if (kill(pid, SIGKILL) == 1){
+			slog(EROGATORE, "erogatore_ticket.pid.%d.kill.child pid.%d.failed!", getpid(), pid);
+			err_exit(strerror(errno));	
+		}	
+		slog(EROGATORE, "erogatore_ticket.pid.%d.kill.child pid.%d.ok", getpid(), pid);
 
-
-
-}
-		
-
-int main (int argc, char **argv){
-	slog(EROGATORE, "erogatore_ticket.pid.%d", getpid());	
-	slog(EROGATORE, "erogatore_ticket.pid.%d.init initialization", getpid());
-	int msgQueueId, erogatoreSemId;
-	if ((msgQueueId = msgget(PROCESS_TO_DIRECTOR_MSG_KEY, 0)) == -1){
-		slog(EROGATORE, "erogatore_ticket.pid.%d.msgget.failed!", getpid());
+		if (release_sem(erogatoreSemId, 1) == -1){
+			slog(EROGATORE, "erogatore_ticket.pid.%d.release_sem.erogatore_sync_sem.semun.1.failed!", getpid());
+			err_exit(strerror(errno));
+		}
+		days++;
+	}	
+	if (msgctl(ticketsMsgQueueId, IPC_RMID, 0) == -1){
+		slog(EROGATORE, "erogatore_ticket.pid.%d.msgctl.ipc_rmid.tickets msg queue.failed!", getpid());
 		err_exit(strerror(errno));
 	}
-	slog(EROGATORE, "erogatore_ticket.pid.%d.msgget.process_to_director.ok!", getpid());
-	if ((erogatoreSemId = semget(EROGATORE_SEM_KEY, 0, 0)) == -1){
-		slog(EROGATORE, "erogatore_ticket.pid.%d.semget.failed!", getpid());
-		err_exit(strerror(errno));
-	}
-	slog(EROGATORE, "erogatore_ticket.pid.%d.semget.erogatore_sem.ok!", getpid());
-	slog(EROGATORE, "erogatore_ticket.pid.%d.initialization.done!", getpid());
-	ProcessInfoAdt pia;
-	pia.pid = getpid();
-	strcpy(pia.mtext, READY);
-	MsgAdt msg;
-	msg.mtype = 1;
-	msg.piAdt = pia;
-	if (msgsnd(msgQueueId, &msg, sizeof(msg) - sizeof(long), 0) == -1){
-		slog(EROGATORE, "erogatore.pid.%d.msgsnd.failed!", getpid());
-		err_exit(strerror(errno));
-	}
-	slog(EROGATORE, "erogatore_ticket.pid.%d.msgsnd.director notified status:ready.done!", getpid());
-	slog(EROGATORE, "erogatore_ticket.pid.%d.reserving_sem...\n", getpid());
-	if (reserve_sem(erogatoreSemId, 0) == -1){
-		slog(EROGATORE, "erogatore.pid.%d.reserve_sem.failed!", getpid());
-		err_exit(strerror(errno));
-	}
-	slog(EROGATORE, "erogatore.pid.%d.started", getpid());	
+	slog(EROGATORE, "erogatore_ticket.pid.%d.tickets msg queue.removed!", getpid());
 	
 }
