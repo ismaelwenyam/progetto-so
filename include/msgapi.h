@@ -15,10 +15,20 @@
 #define UTENTE_GROUP 5
 
 //message code
+#define MSG_LEN 128
 #define ROLE "role"
 
-typedef struct msgbuf MsgBuf;
+typedef struct payload Payload;
+struct payload {
+	pid_t senderPid;
+	char msg[MSG_LEN];
+};
 
+typedef struct msgBuff MsgBuff;
+struct msgBuff {
+	long mtype;
+	Payload payload;
+};
 
 
 

@@ -37,6 +37,7 @@ void print_config (ConfigurationAdt configuration){
 	slog(DIRETTORE, "p_serv_max %d", configuration.pServMax);
 	slog(DIRETTORE, "explode_threshold %d", configuration.explodeThreshold);
 	slog(DIRETTORE, "n_requests %d", configuration.nRequests);
+	slog(DIRETTORE, "n_new_users %d", configuration.nRequests);
 }
 
 void print_logs() {
@@ -65,7 +66,7 @@ int main (int argc, char **argv){
 	int erogatoreSemId, utenteSemId, operatoreSemId, sportelloSemId;
 	int statsShmSemId, servicesShmSemId;
 	int servicesShmId, statisticsShmId;
-	int dirMsgQueueId;
+	int dirMsgQueueId, serviceMsgqId;
 	slog(DIRETTORE, "direttore.pid.%d.setup.start", getpid());
 	if ((resourceCreationSemId = semget(RESOURCE_CREATION_SYNC_SEM_KEY, 1, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
 		slog(DIRETTORE, "direttore.pid.%d.semget.resource creation sync sem.failed", getpid());
@@ -80,37 +81,42 @@ int main (int argc, char **argv){
 	
 	//creazione semaforo per sincronizzazione erogatore
 	slog(DIRETTORE, "direttore.pid.%d.creating erogatore_ticket_sync_sem...", getpid());	
-	if ((erogatoreSemId = semget(EROGATORE_SYNC_SEM, 3, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
+	if ((erogatoreSemId = semget(EROGATORE_SYNC_SEM, 4, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
 		slog(DIRETTORE, "direttore.pid.%d.semget.erogatore_sync_sem.failed", getpid());
 		err_exit(strerror(errno));
 	}
 	slog(DIRETTORE, "direttore.pid.%d.creating erogatore_ticket_sync_sem.ok!", getpid());	
-	if (init_sem_in_use(erogatoreSemId, 0) == -1 || init_sem_in_use(erogatoreSemId, 1) == -1 ||  init_sem_in_use(erogatoreSemId, 2)	== -1){
-		slog(DIRETTORE, "direttore.pid.%d.init_sem_in_use(3).erogatoresem.failed!", getpid());
+	if (init_sem_in_use(erogatoreSemId, 0) == -1 || init_sem_in_use(erogatoreSemId, 1) == -1 ||  init_sem_in_use(erogatoreSemId, 2) || init_sem_in_use(erogatoreSemId, 3) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.init_sem_in_use(4).erogatoresem.failed!", getpid());
 		err_exit(strerror(errno));
 	}
 
 	//creazione semaforo per sincronizzazione utente
 	slog(DIRETTORE, "direttore.pid.%d.creating utente_sync_sem...", getpid());	
-	if ((utenteSemId = semget(UTENTE_SYNC_SEM, 2, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
+	if ((utenteSemId = semget(UTENTE_SYNC_SEM, 3, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
 		slog(DIRETTORE, "direttore.pid.%d.semget.utente_sync_sem.failed", getpid());
 		err_exit(strerror(errno));
 	}
 	slog(DIRETTORE, "direttore.pid.%d.creating utente_sync_sem.ok!", getpid());	
-	if (init_sem_in_use(utenteSemId, 0) == -1 || init_sem_in_use(utenteSemId, 1) == -1){
-		slog(DIRETTORE, "direttore.pid.%d.init_sem_in_use(2).utentesem.failed!", getpid());
+	if (init_sem_in_use(utenteSemId, 0) == -1 || init_sem_in_use(utenteSemId, 1) == -1 || init_sem_in_use(utenteSemId, 2) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.init_sem_in_use(3).utentesem.failed!", getpid());
 		err_exit(strerror(errno));
 	}
 
 	//creazione semaforo per sincronizzazione operatore
 	slog(DIRETTORE, "direttore.pid.%d.creating operatore_sync_sem...", getpid());	
-	if ((operatoreSemId = semget(OPERATORE_SYNC_SEM, 2, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
+	if ((operatoreSemId = semget(OPERATORE_SYNC_SEM, 3, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
 		slog(DIRETTORE, "direttore.pid.%d.semget.operatore_sync_sem.failed", getpid());
 		err_exit(strerror(errno));
 	}
 	slog(DIRETTORE, "direttore.pid.%d.creating operatore_sync_sem.ok!", getpid());	
-	if (init_sem_in_use(operatoreSemId, 0) == -1 || init_sem_in_use(operatoreSemId, 1) == -1){
-		slog(DIRETTORE, "direttore.pid.%d.init_sem_in_use(2).operatoresem.failed!", getpid());
+	if (init_sem_in_use(operatoreSemId, 0) == -1 || init_sem_in_use(operatoreSemId, 1) == -1 || init_sem_in_use(operatoreSemId, 2) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.init_sem_in_use(3).operatoresem.failed!", getpid());
+		err_exit(strerror(errno));
+	}
+	// creazione della coda di messaggi per i processi di tipo operatore
+	if ((serviceMsgqId = msgget(SERVICE_MESSAGE_QUEUE_KEY, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
+		slog(OPERATORE, "operatore.pid.%d.msgget.ipc_creat.services message queue.failed!", getpid());
 		err_exit(strerror(errno));
 	}
 
@@ -192,55 +198,146 @@ int main (int argc, char **argv){
 	
 	if (pid == 0){		/* child code */
 		create_erogatore_ticket();	
-		//create_sportello(configuration.nofWorkerSeats);
-		//create_operatore(configuration.nofWorkers);
-		//create_utente(configuration.nofUsers);
+		create_sportello(configuration.nofWorkerSeats);
+		create_operatore(configuration.nofWorkers);
+		create_utente(configuration.nofUsers);
 		slog(DIRETTORE, "direttore.child.pid.%d.creazione risorse.ok!", getpid());
 		exit(EXIT_SUCCESS);
 	}
 	
 				/* parent code */
 
-	//attesa richiesta di funzioni da parte dei operatori
-	/*	
-	MsgBuf msgb;
+	//attesa richiesta di funzioni da parte dei operatori	
+	MsgBuff msgBuff;
 	int counter = 0;
+	char text [MSG_LEN];
 	while (counter < configuration.nofWorkers){
-		if (msgrcv(dirMsgQueueId, &msgb, sizeof(msgb) - sizeof(long), OPERATORE_GROUP, 0) == -1){
+		if (msgrcv(dirMsgQueueId, &msgBuff, sizeof(msgBuff) - sizeof(long), OPERATORE_GROUP, 0) == -1){
 			slog(DIRETTORE, "direttore.pid.%d.msgrcv.from operatore group.failed!", getpid());
 			err_exit(strerror(errno));
 		}
 		//garantisce che per ogni servizio vi e un operatore che la fornisce.
 		if (counter < NUMBER_OF_SERVICES){
-			strcpy(msgb.mtext, services[counter]);			
+			strcpy(msgBuff.payload.msg, services[counter]);			
 		}else{
 			int servizio = rand() % NUMBER_OF_SERVICES;	
-			strcpy(msgb.mtext, services[servizio]);			
+			strcpy(msgBuff.payload.msg, services[servizio]);			
 		}
-		msgb.mtype = OPERATORE_GROUP;
-		if (msgsnd(dirMsgQueueId, &msgb, sizeof(msgb) - sizeof(long), 0) == -1){
+		msgBuff.mtype = msgBuff.payload.senderPid;
+		msgBuff.payload.senderPid = getpid();
+		if (msgsnd(dirMsgQueueId, &msgBuff, sizeof(msgBuff) - sizeof(long), 0) == -1){
 			slog(DIRETTORE, "direttore.pid.%d.msgsnd.to operatore group.failed!", getpid());
 			err_exit(strerror(errno));
 		}
 
 		counter++;
 	}
-	*/
+	// ensures that workers have completed init
+	slog(DIRETTORE, "direttore.pid.%d.waiting workers to complete init", getpid());
+	for (int i = 0; i < configuration.nofWorkers; i++){
+		if (reserve_sem(operatoreSemId, 0) == -1){
+			//TODO handle errors
+		}
+	}
+	// ensures that erogatore have completed init
+	slog(DIRETTORE, "direttore.pid.%d.waiting erogatore to complete init", getpid());
+	if (reserve_sem(erogatoreSemId, 0) == -1){
+			//TODO handle errors
+	}
+	// ensures that users have completed init
+	slog(DIRETTORE, "direttore.pid.%d.waiting users to complete init", getpid());
+	for (int i = 0; i < configuration.nofUsers; i++){
+		if (reserve_sem(utenteSemId, 0) == -1){
+			//TODO handle errors
+		}
+
+	}
 	int days = 0;
+	int users = configuration.nofUsers;
 	while (days < configuration.simDuration){
 		slog(DIRETTORE, "direttore.pid.%d.day: %d", getpid(), days+1);
+		
 		//TODO assegnare funzione agli sportelli
-		if (release_sem(erogatoreSemId, 0) == -1){
+		for (int i = 0; i < configuration.nofWorkerSeats; i++){
+			if (msgrcv(dirMsgQueueId, &msgBuff, sizeof(msgBuff) - sizeof(long), DIRETTORE_GROUP, 0) == -1){
+				slog(DIRETTORE, "direttore.pid.%d.msgrcv.from sportello group.failed!", getpid());
+				err_exit(strerror(errno));
+			}
+			int servizio = rand() % NUMBER_OF_SERVICES;
+			strcpy(msgBuff.payload.msg, services[servizio]);	
+			msgBuff.mtype = msgBuff.payload.senderPid;
+			msgBuff.payload.senderPid = getpid();
+			if (msgsnd(dirMsgQueueId, &msgBuff, sizeof(msgBuff) - sizeof(long), 0) == -1){
+				slog(DIRETTORE, "direttore.pid.%d.msgsnd.to sportello group.failed!", getpid());
+				err_exit(strerror(errno));
+			}
+
+		}
+		// ensures that workers start working on start of day
+		for (int i = 0; i < configuration.nofWorkers; i++){
+			if (release_sem(operatoreSemId, 1) == -1){
+				//TODO handle errors
+			}
+		}
+		
+		// ensures that erogatore start working on start of day
+		if (release_sem(erogatoreSemId, 1) == -1){
+			//TODO handle errors
+		}
+
+		// ensures that users start on start of day
+		for (int i = 0; i < users; i++){
+			if (release_sem(utenteSemId, 1) == -1){
+				//TODO handle errors
+			}
 
 		}
 
+		slog(DIRETTORE, "direttore.pid.%d.sleeping 10s...", getpid());
+		sleep(1);
+		slog(DIRETTORE, "direttore.pid.%d.wake up", getpid());
+		//pause();
 
-		if (release_sem(erogatoreSemId, 2) == -1){
+		// allow erogatore to kill its child
+		if (release_sem(erogatoreSemId, 3) == -1){
+			//TODO handle errors
 
 		}
 		
-		if (reserve_sem(erogatoreSemId, 1) == -1){
+		// ensure that erogatore has completed the day
+		if (reserve_sem(erogatoreSemId, 2) == -1){
+			//TODO handle errors
 
+		}
+		
+		// ensure that users has completed the day
+		for (int i = 0; i < users; i++){
+			if (reserve_sem(utenteSemId, 2) == -1){
+				//TODO handle errors
+
+			}
+
+		}
+		for (int i = 0; i < configuration.nofWorkerSeats; i++){
+			if (release_sem(sportelloSemId, 0) == -1){
+				//TODO handle errors
+			}
+		}
+		
+		// ensure that workers has completed the day
+		for (int i = 0; i < configuration.nofWorkers; i++){
+			if (reserve_sem(operatoreSemId, 2) == -1){
+				//TODO handle errors
+			}
+		}
+		
+		if (reserve_sem(servicesShmSemId, 0) == -1){
+			//TODO log error message and exit
+		}
+		slog(DIRETTORE, "direttore.pid.%d.daily stats", getpid());	
+		
+		if (release_sem(servicesShmSemId, 0) == -1){
+			//TODO log error message and exit
 		}
 
 

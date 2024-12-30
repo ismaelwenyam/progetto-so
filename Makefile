@@ -27,10 +27,7 @@ utente: src/utente.o src/simulation_configuration.o src/semapi.o src/simerr.o sr
 erogatore_ticket: src/erogatore_ticket.o src/semapi.o src/simerr.o src/logapi.o
 	$(CC) -o $@ $^
 
-utente: src/utente.o src/o src/semapi.o src/simerr.o src/logapi.o
-	$(CC) -o $@ $^
-
-sportello: src/sportello.o src/simerr.o src/logapi.o
+sportello: src/sportello.o src/simerr.o src/logapi.o src/semapi.o src/simulation_configuration.o
 	$(CC) -o $@ $^
 
 operatore: src/operatore.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o

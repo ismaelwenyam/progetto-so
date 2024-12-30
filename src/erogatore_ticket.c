@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/shm.h>
 #include <sys/msg.h>
@@ -26,6 +27,16 @@ void print_available_services (int argc, char **argv){
 
 void usage (){
 	printf("Not enough arguments. i.e: ./erogatore_ticket [SHMID] [SEMID]\n");
+}
+
+bool eod = false;	/* end of day */
+
+void signalHandler(int sig){
+	slog(EROGATORE, "erogatore_ticket.pid.%d.signal intercepted", getpid());
+	if (sig == SIGTERM){
+		eod = true;
+		signal(sig, signalHandler);
+	}
 }
 
 int main (int argc, char **argv){
@@ -66,79 +77,109 @@ int main (int argc, char **argv){
 		slog(EROGATORE, "erogatore_ticket.pid.%d.shmget.service_shared_memory.failed!", getpid());
 		err_exit(strerror(errno));
 	}
-	slog(EROGATORE, "erogatore_ticket.pid.%d.initialization done!", getpid());
-	slog(EROGATORE, "erogatore_ticket.pid.%d.waiting for simulation to start", getpid());	
 	int days = 0;
 	pid_t pid;
 	TicketRequestAdt ticketRequest;
 	TicketAdtPtr ticketsPtr;
+	MsgBuff msgBuff;
+	slog(EROGATORE, "erogatore_ticket.pid.%d.completed initialization", getpid());
+	//slog(EROGATORE, "erogatore_ticket.pid.%d.waiting for simulation to start", getpid());	
+	if (release_sem(erogatoreSemId, 0) == -1){
+		slog(EROGATORE, "erogatore_ticket.pid.%d.release_sem.erogatore_sync_sem.semun.0.failed!", getpid());
+		err_exit(strerror(errno));
+	}
+	
 	while (days < configuration.simDuration){
-		if (reserve_sem(erogatoreSemId, 0) == -1){
-			slog(EROGATORE, "erogatore_ticket.pid.%d.reserve_sem.erogatore_sync_sem.semun.0.failed!", getpid());
+		if (reserve_sem(erogatoreSemId, 1) == -1){
+			slog(EROGATORE, "erogatore_ticket.pid.%d.reserve_sem.erogatore_sync_sem.semun.1.failed!", getpid());
 			err_exit(strerror(errno));
 		}
 		slog(EROGATORE, "erogatore_ticket.pid.%d.day: %d", getpid(), days+1);
-		slog(EROGATORE, "erogatore_ticket.pid.%d.live and waiting requests", getpid());
 		pid = fork();
 		if (pid == -1){
 			slog(EROGATORE, "erogatore_ticket.pid.%d.fork.failed!", getpid());
 			err_exit(strerror(errno));
 		}	
 		if (pid == 0){			/* child code */
-			while (1){
-				if (msgrcv(ticketsMsgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), EROGATORE_GROUP, 0) == -1){
-					slog(EROGATORE, "erogatore_ticket.pid.%d.msgrcv.tickets msg queue.failed!", getpid());
-					err_exit(strerror(errno));
+			signal(SIGTERM, signalHandler);
+			while (!eod){
+				slog(EROGATORE, "erogatore_ticket.child.pid.%d.waiting tickets request", getpid());
+				if (msgrcv(ticketsMsgQueueId, &msgBuff, sizeof(msgBuff) - sizeof(long), UTENTE_GROUP, 0) == -1){
+					slog(EROGATORE, "erogatore_ticket.child.pid.%d.msgrcv.tickets msg queue.failed!", getpid());
+					if (errno == EINTR){
+						//TODO
+						ticketRequest.mtype = msgBuff.payload.senderPid;
+						ticketRequest.ticket.eod = true; 
+						if (msgsnd(ticketsMsgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), 0) == -1){
+							slog(EROGATORE, "erogatore_ticket.child.pid.%d.msgsnd.notifying user: eod.failed!", getpid());
+							err_exit(strerror(errno));
+						} 
+						slog(EROGATORE, "erogatore_ticket.child.pid.%d.msgsnd.notified user: eod", getpid());
+					}
+					continue;
 				}	
+				slog(EROGATORE, "erogatore_ticket.child.pid.%d.msgrcv.received ticket request for: %s", getpid(), msgBuff.payload.msg);
+				slog(EROGATORE, "erogatore_ticket.child.pid.%d.reserving sem for services shared memory...", getpid());	
 				if (reserve_sem(servicesShmSemId, 0) == -1){
-					slog(EROGATORE, "erogatore_ticket.pid.%d.reserve_sem.services shm sem.failed!", getpid());
+					slog(EROGATORE, "erogatore_ticket.child.pid.%d.reserve_sem.services shm sem.failed!", getpid());
 					err_exit(strerror(errno));
 				}
+				slog(EROGATORE, "erogatore_ticket.child.pid.%d.reserved sem for services shared memory", getpid());	
 				errno = 0;
 				ticketsPtr = shmat(servicesShmId, NULL, SHM_RND);
 				if (errno != 0){
-					slog(EROGATORE, "erogatore_ticket.pid.%d.shmat.services shm.failed", getpid());	
+					slog(EROGATORE, "erogatore_ticket.child.pid.%d.shmat.services shm.failed", getpid());	
 					err_exit(strerror(errno));
 				}
+				slog(EROGATORE, "erogatore_ticket.child.pid.%d.accessed services shared memory", getpid());	
 				int i = 0;
 				while (i < NUMBER_OF_SERVICES){
-					if (strcmp(ticketsPtr[i].servizio, ticketRequest.ticket.servizio) == 0){
+					//printf("service: %s - temp: %d - available: %s\n", ticketsPtr[i].servizio, ticketsPtr[i].tempario, ticketsPtr[i].serviceAvailable?"true":"false");
+					if (strcmp(ticketsPtr[i].servizio, msgBuff.payload.msg) == 0){
 						ticketRequest.ticket = ticketsPtr[i];
 						break;
 					}
 					i++;
 				}
+				slog(EROGATORE, "erogatore_ticket.child.pid.%d.ticket requested: service: %s - tempario: %d - available: %s", getpid(), ticketRequest.ticket.servizio, ticketRequest.ticket.tempario, ticketRequest.ticket.serviceAvailable ? "true" : "false");
 				//TODO impostare il tempario a +- 50% del valore iniziale
 				if (release_sem(servicesShmSemId, 0) == -1){
-					slog(EROGATORE, "erogatore_ticket.pid.%d.release_sem.services shm sem.failed!", getpid());
+					slog(EROGATORE, "erogatore_ticket.child.pid.%d.release_sem.services shm sem.failed!", getpid());
 					err_exit(strerror(errno));
 				}
 				if (shmdt(ticketsPtr) == -1){
-					slog(EROGATORE, "erogatore_ticket.pid.%d.shmdt.services shm.failed!", getpid());
+					slog(EROGATORE, "erogatore_ticket.child.pid.%d.shmdt.services shm.failed!", getpid());
 					return -1;
 				}
+				ticketRequest.mtype = msgBuff.payload.senderPid;
 				if (msgsnd(ticketsMsgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), 0) == -1){
-					slog(EROGATORE, "erogatore_ticket.pid.%d.msgsnd.tickets msg queue.failed!", getpid());
+					slog(EROGATORE, "erogatore_ticket.child.pid.%d.msgsnd.tickets msg queue.failed!", getpid());
 					err_exit(strerror(errno));
 				} 
+				slog(EROGATORE, "erogatore_ticket.child.pid.%d.msgsnd.ticket sent!", getpid());
 			}
+			slog(EROGATORE, "erogatore_ticket.child.pid.%d.end of day:%s", getpid(), eod ? "true" : "false");
 			exit(EXIT_SUCCESS);
 		}
 						/* parent code */
-		if (reserve_sem(erogatoreSemId, 2) == -1){
-			slog(EROGATORE, "erogatore_ticket.pid.%d.reserve_sem.erogatore_sync_sem.semun.2.failed!", getpid());
+		slog(EROGATORE, "erogatore_ticket.pid.%d.waiting end of day", getpid());
+		if (reserve_sem(erogatoreSemId, 3) == -1){
+			slog(EROGATORE, "erogatore_ticket.pid.%d.reserve_sem.erogatore_sync_sem.semun.3.failed!", getpid());
 			err_exit(strerror(errno));
 		}
-		if (kill(pid, SIGKILL) == 1){
+		slog(EROGATORE, "erogatore_ticket.pid.%d.end of day received", getpid());
+		if (kill(pid, SIGTERM) == 1){
 			slog(EROGATORE, "erogatore_ticket.pid.%d.kill.child pid.%d.failed!", getpid(), pid);
 			err_exit(strerror(errno));	
 		}	
 		slog(EROGATORE, "erogatore_ticket.pid.%d.kill.child pid.%d.ok", getpid(), pid);
+		wait(NULL);
 
-		if (release_sem(erogatoreSemId, 1) == -1){
-			slog(EROGATORE, "erogatore_ticket.pid.%d.release_sem.erogatore_sync_sem.semun.1.failed!", getpid());
+		if (release_sem(erogatoreSemId, 2) == -1){
+			slog(EROGATORE, "erogatore_ticket.pid.%d.release_sem.erogatore_sync_sem.semun.2.failed!", getpid());
 			err_exit(strerror(errno));
 		}
+		slog(EROGATORE, "erogatore_ticket.pid.%d.erogatoreSem.release_sem(%d, 1)", getpid(), erogatoreSemId);
 		days++;
 	}	
 	if (msgctl(ticketsMsgQueueId, IPC_RMID, 0) == -1){
