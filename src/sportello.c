@@ -7,8 +7,10 @@
 #include "simerr.h"
 #include "logapi.h"
 #include "msgapi.h"
+#include "services.h"
 #include "shmapi.h"
 #include "semapi.h"
+#include "ticket.h"
 #include "simulation_configuration.h"
 
 
@@ -44,6 +46,7 @@ int main (int argc, char **argv) {
 
 	int days = 0;
 	MsgBuff msgBuff;
+	SportelloPtr sportello;
 	while (days < configuration.simDuration){
 		
 		slog(SPORTELLO, "sportello.pid.%d.requesting role", getpid());
@@ -68,11 +71,47 @@ int main (int argc, char **argv) {
 		}
 		
 		slog(SPORTELLO, "sportello.pid.%d.updating services shm", getpid());
+		errno = 0;
+		TicketAdtPtr ticketsPtr = shmat(servicesShmId, NULL, SHM_RND);
+		if (errno != 0){
+			slog(SPORTELLO, "sportello.pid.%d.shmat.services shm.failed!", getpid());
+			if (release_sem(servicesShmSemId, 0) == -1){
+				//TODO log error message and exit
+			}
+			err_exit(strerror(errno));
+		}
+		slog(SPORTELLO, "sportello.pid.%d.updating services shm...", getpid());
+		for (int i = 0; i < NUMBER_OF_SERVICES; i++){
+			if (strcmp(ticketsPtr[i].servizio, msgBuff.payload.msg) == 0){
+				sportello = mkSportello(0, true, operatoreSportelloSemId, 0, 0, 0);
+				if (sportello == NULL){
+					slog(SPORTELLO, "sportello.pid.%d.couldn't istantiate sportello", getpid());	
+					if (release_sem(servicesShmSemId, 0) == -1){
+						//TODO log error message and exit
+					}
+					err_exit(strerror(errno));
+				}
+				if (!addSportello(ticketsPtr[i].sportelli, sportello)){
+					slog(SPORTELLO, "utente.pid.%d.failed to add sportello in set", getpid());
+					if (release_sem(servicesShmSemId, 0) == -1){
+						//TODO log error message and exit
+					}
+					err_exit(strerror(errno));
+				}
+				break;
+			}
+		}
+		slog(SPORTELLO, "sportello.pid.%d.updated services", getpid());
 		
 		if (release_sem(servicesShmSemId, 0) == -1){
 			//TODO log error message and exit
 		}
 		slog(SPORTELLO, "sportello.pid.%d.released sem to update services shm", getpid());
+		
+		if (shmdt(ticketsPtr) == -1){
+			slog(DIRETTORE, "direttore.pid.%d.shmdt.services shm.failed!", getpid());
+			return -1;
+		}
 		
 		if (reserve_sem(sportelloSemId, 0) == -1){
 

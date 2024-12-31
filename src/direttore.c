@@ -461,31 +461,55 @@ int writeServicesInShm(int shmId, int semId){
 		slog(DIRETTORE, "direttore.pid.%d.shmat.services shm.failed!", getpid());
 		return -1;
 	}
+	SportelloSetAdtPtr sportelli;
 	for (size_t i = 0; i < NUMBER_OF_SERVICES; i++){
+		sportelli = mkSportelloSet();
+		if (sportelli == NULL){
+			slog(DIRETTORE, "direttore.pid.%d.couldn't istantiate sportelloSetAdt", getpid());
+			err_exit(strerror(errno));
+		}
 		if (strcmp(services[i], IRP) == 0){
 			strcpy(tickets[i].servizio, IRP);
 			tickets[i].tempario = 10;
 			tickets[i].serviceAvailable = true;	
+			tickets[i].eod = false;
+			tickets[i].index = 0;
+			tickets[i].sportelli = sportelli;
 		}else if (strcmp(services[i], ILR) == 0){
 			strcpy(tickets[i].servizio, ILR);
 			tickets[i].tempario = 8;
 			tickets[i].serviceAvailable = true;	
+			tickets[i].eod = false;
+			tickets[i].index = 0;
+			tickets[i].sportelli = sportelli;
 		}else if (strcmp(services[i], PVB) == 0){
 			strcpy(tickets[i].servizio, PVB);
 			tickets[i].tempario = 6;
 			tickets[i].serviceAvailable = true;	
+			tickets[i].eod = false;
+			tickets[i].index = 0;
+			tickets[i].sportelli = sportelli;
 		}else if (strcmp(services[i], PBP) == 0){
 			strcpy(tickets[i].servizio, PBP);
 			tickets[i].tempario = 8;
 			tickets[i].serviceAvailable = true;	
+			tickets[i].eod = false;
+			tickets[i].index = 0;
+			tickets[i].sportelli = sportelli;
 		}else if (strcmp(services[i], APF) == 0){
 			strcpy(tickets[i].servizio, APF);
 			tickets[i].tempario = 20;
 			tickets[i].serviceAvailable = true;	
+			tickets[i].eod = false;
+			tickets[i].index = 0;
+			tickets[i].sportelli = sportelli;
 		}else{
 			strcpy(tickets[i].servizio, AOB);
 			tickets[i].tempario = 20;
 			tickets[i].serviceAvailable = true;	
+			tickets[i].eod = false;
+			tickets[i].index = 0;
+			tickets[i].sportelli = sportelli;
 		}
 	}	
 	if (release_sem(semId, 0) == -1){

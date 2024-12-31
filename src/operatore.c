@@ -70,6 +70,8 @@ int main (int argc, char **argv){
 	int days = 0;
 	slog(OPERATORE, "operatore.pid.%d.completed initialization", getpid());
 	//slog(EROGATORE, "erogatore_ticket.pid.%d.waiting for simulation to start", getpid());	
+	pid_t pid;
+	TicketAdtPtr ticketsPtr;
 	if (release_sem(operatoreSemId, 0) == -1){
 			//TODO log error message and exit
 	}
@@ -79,7 +81,42 @@ int main (int argc, char **argv){
 			//TODO log error message and exit
 		}
 		slog(OPERATORE, "operatore.pid.%d.day: %d", getpid(), days+1);
+		pid = fork();
+		if (pid == -1){
+			slog(OPERATORE, "operatore.pid.%d.fork.failed!", getpid());
+			err_exit(strerror(errno));
+		}		
+		if (pid == 0){		/* child code */
+			slog(OPERATOR, "operatore.child.pid.%d.looking for desk", getpid());	
+			if (reserve_sem(servicesShmSemId, 0) == -1){
+				//TODO log error message and exit
+			}	
+			errno = 0;
+			ticketsPtr = shmat(servicesShmId, NULL, SHM_RND);
+			if (errno != 0){
+				slog(SPORTELLO, "sportello.pid.%d.shmat.services shm.failed!", getpid());
+				if (release_sem(servicesShmSemId, 0) == -1){
+					//TODO log error message and exit
+				}
+				err_exit(strerror(errno));
+			}
+			for (int i = 0; i < NUMBER_OF_SERVICES; i++){
+				if (strcmp(ticketsPtr[i].servizio, msgBuff.payload.msg) != 0) continue;	
+			
 
+					
+				break;
+			}
+					
+
+			if (release_sem(servicesShmSemId, 0) == -1){
+				//TODO log error message and exit
+			}
+			
+			exit(EXIT_SUCCESS);
+		}
+					/* parent code */
+		//gestire l'uccisione del figlio	
 
 		
 		if (release_sem(operatoreSemId, 2) == -1){

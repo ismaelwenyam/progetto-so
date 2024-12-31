@@ -5,17 +5,18 @@
 
 
 
-SportelloPtr mkSportello(pid_t pid, bool serviceAvailable, int deskSemId, int deskSemun, int workerDeskSemId, int workerDeskSemun){
+SportelloPtr mkSportello(pid_t pid, bool deskAvailable, int deskSemId, int deskSemun, int workerDeskSemId, int workerDeskSemun){
 	SportelloPtr sportello = malloc(sizeof(Sportello));
 	if (sportello == NULL){
 		return NULL;
 	}
-	sportello->pid = pid;
-	sportello->serviceAvailable = serviceAvailable;
-	sportello->workerDeskSemId = deskSemId;
-	sportello->workerDeskSemun = deskSemun;
-	sportello->userDeskSemId = workerDeskSemId;
-	sportello->userDeskSemun = workerDeskSemun;	
+	sportello->operatorPid = pid;
+	sportello->deskAvailable = deskAvailable;
+	sportello->deskSemId = deskSemId;
+	sportello->deskSemun = deskSemun;
+	sportello->workerDeskSemId = workerDeskSemId;
+	sportello->workerDeskSemun = workerDeskSemun;	
+	sportello->nextSportello = NULL;
 	return sportello;
 }
 bool dsSportello(SportelloPtr sportelloPtr){
@@ -44,7 +45,7 @@ bool dsSportelloSetAdt (SportelloSetAdtPtr *sportelloSet){
 	SportelloPtr current = (*sportelloSet)->front;
 	SportelloPtr next = NULL;
 	while (current != NULL){
-		next = current->next;
+		next = current->nextSportello;
 		dsSportello(current);
 		current = next;
 	}
@@ -61,23 +62,23 @@ bool addSportello (SportelloSetAdtPtr set, SportelloPtr sportello){
 	SportelloPtr previous = NULL;
 	bool sportelloPresent = false;
 	while (current != NULL && !sportelloPresent){
-		sportelloPresent = current->pid && sportello->pid;
+		sportelloPresent = current->operatorPid == sportello->operatorPid;
 		previous = current;
-		current = current->next;
+		current = current->nextSportello;
 	}
 	if (sportelloPresent){
 		return false;
 	}
 	if (previous == NULL){
 		set->front = sportello;
-	else {
-		previous->next = sportello;
+	}else {
+		previous->nextSportello = sportello;
 	}
 	set->size += 1;
 	return true;
 }
 
-bool removeSportello (SportelloSetAdtPtr set, pid_t){
+bool removeSportello (SportelloSetAdtPtr set, pid_t pid){
 	if (set == NULL){
 		return false;
 	}
@@ -85,21 +86,21 @@ bool removeSportello (SportelloSetAdtPtr set, pid_t){
 	SportelloPtr previous = NULL;
 	bool sportelloPresent = false;
 	while (current != NULL && !sportelloPresent){
-		sportelloPresent = current->pid && pid;
+		sportelloPresent = current->operatorPid == pid;
 		if (sportelloPresent){
 			continue;
 		}
 		previous = current;
-		current = current->next;
+		current = current->nextSportello;
 	}
-	if (currentNode == NULL){
+	if (current == NULL){
 		return true;
 	}
-	if (previousNode == NULL){
-		set->front = current->next;
+	if (previous == NULL){
+		set->front = current->nextSportello;
 		free(current);
 	}else{
-		previous->next = current->next;
+		previous->nextSportello = current->nextSportello;
 		free(current);
 	}
 	set->size -= 1;

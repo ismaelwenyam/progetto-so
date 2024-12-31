@@ -23,11 +23,11 @@ struct sportelloSet {
 	SportelloPtr front;
 };
 
-Sportello mkSportello(pid_t, bool, int, int, int, int);
+SportelloPtr mkSportello(pid_t, bool, int, int, int, int);
 bool dsSportello(SportelloPtr);
 
-SportelloSetAdt mkSportelloSet ();
-bool dsSportelloSetAdt (SportelloSetAdtPtr);
+SportelloSetAdtPtr mkSportelloSet ();
+bool dsSportelloSetAdt (SportelloSetAdtPtr*);
 bool addSportello (SportelloSetAdtPtr, SportelloPtr);
 bool removeSportello (SportelloSetAdtPtr, pid_t);
 
@@ -38,7 +38,7 @@ struct ticket {
 	bool serviceAvailable;
 	bool eod;
 	int index;
-	Sportello sportello;
+	SportelloSetAdtPtr sportelli;
 };
 
 typedef struct ticketRequest TicketRequestAdt, *TicketRequestAdtPtr;
