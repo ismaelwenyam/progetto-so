@@ -51,6 +51,7 @@ void print_logs() {
 
 const char *services[] = {IRP, ILR, PVB, PBP, APF, AOB};
 
+		//TODO se il direttore dove fallire gestire tutti gli altri processi
 int main (int argc, char **argv){	
 	srand(time(NULL));
 	print_logs();
@@ -276,10 +277,29 @@ int main (int argc, char **argv){
 	int days = 0;
 	int users = configuration.nofUsers;
 	SportelloAdtPtr sportelliPtr;
+	ServizioAdtPtr servicesPtr;
 	while (days < configuration.simDuration){
 		slog(DIRETTORE, "direttore.pid.%d.day: %d", getpid(), days+1);
+		if (reserve_sem(servicesShmSemId, 0) == -1){
+			slog(DIRETTORE, "direttore.pid.%d.reserve_sem.services shm sem.failed!", getpid());
+			err_exit(strerror(errno));
+		}
 		
-		//TODO assegnare funzione agli sportelli
+		
+		//TODO decidere quali servizi rendere disponibile per il giorno i
+		servicesPtr = shmat(servicesShmId, NULL, SHM_RND);
+		if (servicesPtr == (void*)-1){
+			slog(DIRETTORE, "direttore.pid.%d.shmat.services shm.failed!", getpid());
+			err_exit(strerror(errno));
+		}
+		slog(DIRETTORE, "direttore.pid.%d.accessed services shm", getpid());
+		for (int i = 0; i < NUMBER_OF_SERVICES; i++){
+			int s = rand() % NUMBER_OF_SERVICES;
+			s = s >= 2 ? 1 : 0;
+			servicesPtr[i].available = s;
+		}
+		
+		//assegnazione funzioni agli sportelli
 		if (reserve_sem(sportelliShmSemId, 0) == -1){
 			slog(SPORTELLO, "direttore.pid.%d.reserve_sem.sportelli shm sem.failed!", getpid());
 			err_exit(strerror(errno));
@@ -296,17 +316,36 @@ int main (int argc, char **argv){
 				slog(DIRETTORE, "direttore.pid.%d.msgrcv.from sportello group.failed!", getpid());
 				err_exit(strerror(errno));
 			}
-			int servizio = rand() % NUMBER_OF_SERVICES;
-			strcpy(msgBuff.payload.msg, services[servizio]);	
-			msgBuff.mtype = msgBuff.payload.senderPid;
-			msgBuff.payload.senderPid = getpid();
-			if (msgsnd(dirMsgQueueId, &msgBuff, sizeof(msgBuff) - sizeof(long), 0) == -1){
-				slog(DIRETTORE, "direttore.pid.%d.msgsnd.to sportello group.failed!", getpid());
-				err_exit(strerror(errno));
+			//TODO rivedere metodologia di assegnazione servizi per sportelli
+			int servizio;	
+			for (;;){
+				servizio = rand() % NUMBER_OF_SERVICES;
+				if (servicesPtr[servizio].available){
+					strcpy(msgBuff.payload.msg, servicesPtr[servizio].name);	
+					msgBuff.mtype = msgBuff.payload.senderPid;
+					msgBuff.payload.senderPid = getpid();
+					if (msgsnd(dirMsgQueueId, &msgBuff, sizeof(msgBuff) - sizeof(long), 0) == -1){
+						slog(DIRETTORE, "direttore.pid.%d.msgsnd.to sportello group.failed!", getpid());
+						err_exit(strerror(errno));
+					}
+					strcpy(sportelliPtr[i].serviceName, servicesPtr[servizio].name);
+					break;
+				}	
+				
 			}
-			strcpy(sportelliPtr[i].serviceName, services[servizio]);
 
 		}
+		// rilasciare semaforo
+		if (release_sem(servicesShmSemId, 0) == -1){
+			slog(DIRETTORE, "direttore.pid.%d.release_sem.services shm sem.failed!", getpid());
+			err_exit(strerror(errno));
+		}
+		// staccare la memoria condivisa
+		if (shmdt(servicesPtr) == -1){
+			slog(DIRETTORE, "direttore.pid.%d.shmdt.services shm.failed!", getpid());
+			err_exit(strerror(errno));
+		}
+		
 		if (release_sem(sportelliShmSemId, 0) == -1){
 			slog(SPORTELLO, "direttore.pid.%d.release_sem.sportelli shm sem.failed!", getpid());
 			err_exit(strerror(errno));
@@ -580,3 +619,5 @@ int writeServicesInShm(int shmId, int semId){
 	slog(DIRETTORE, "direttore.pid.%d.writeServicesInShm.end", getpid());
 	return 0;
 }
+
+
