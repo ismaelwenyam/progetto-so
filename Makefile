@@ -15,7 +15,7 @@ src/%.o: src/%.c
 	$(CC) $(INCLUDES) $(CFLAGS) -c $< -o $@
 
 # Link degli eseguibili
-direttore: src/direttore.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o 
+direttore: src/direttore.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o src/utils.o
 	$(CC) -o $@ $^
 
 erogatore_ticket: src/erogatore_ticket.o src/semapi.o src/simerr.o src/logapi.o src/simulation_configuration.o 
