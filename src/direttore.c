@@ -16,6 +16,7 @@
 #include "shmapi.h"
 #include "msgapi.h"
 #include "simulation_configuration.h"
+#include "utils_api.h"
 
 
 
@@ -354,6 +355,7 @@ int main (int argc, char **argv){
 			slog(SPORTELLO, "direttore.pid.%d.shmdt.sportelli shm.failed!", getpid());
 			return -1;
 		}
+		
 		// ensures that worker seats updates sportelli shm 
 		for (int i = 0; i < configuration.nofWorkerSeats; i++){
 			if (reserve_sem(sportelloSemId, 0) == -1){
@@ -459,6 +461,8 @@ int main (int argc, char **argv){
 			slog(DIRETTORE, "direttore.pid.%d.release_sem.services shm sem.failed!", getpid());
 			err_exit(strerror(errno));
 		}
+		print_services_in_shm(servicesShmId, servicesShmSemId);
+		print_sportelli_in_shm(sportelliShmId, sportelliShmSemId, configuration.nofWorkerSeats);
 
 
 		days++;

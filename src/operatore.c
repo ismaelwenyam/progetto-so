@@ -149,6 +149,7 @@ int main (int argc, char **argv){
 				sportelloFound = true;
 				if (sportelliPtr[i].deskAvailable){
 					sportelloAvailable = true;
+					sportelliPtr[i].deskAvailable = false;
 					sportelliPtr[i].operatorPid = getpid();
 				}
 				sportelliPtr[i].workerDeskSemId = utenteOperatoreSemId;
