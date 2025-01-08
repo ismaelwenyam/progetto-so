@@ -13,7 +13,6 @@
 #include "semapi.h"
 #include "shmapi.h"
 #include "msgapi.h"
-#include "services.h"
 #include "simulation_configuration.h"
 
 
@@ -31,11 +30,11 @@ void usage (){
 
 bool eod = false;	/* end of day */
 
-void signalHandler(int sig){
+void erogatoreSignalHandler(int sig){
 	slog(EROGATORE, "erogatore_ticket.pid.%d.signal intercepted", getpid());
 	if (sig == SIGTERM){
 		eod = true;
-		signal(sig, signalHandler);
+		signal(sig, erogatoreSignalHandler);
 	}
 }
 
@@ -43,7 +42,9 @@ int main (int argc, char **argv){
 	ConfigurationAdt configuration = get_config();
 	slog(EROGATORE, "erogatore_ticket.pid.%d", getpid());	
 	slog(EROGATORE, "erogatore_ticket.pid.%d.init initialization", getpid());
-	int resourceCreationSemId, erogatoreSemId, ticketsMsgQueueId, servicesShmSemId, servicesShmId;
+	int resourceCreationSemId, erogatoreSemId, ticketsMsgQueueId;
+	int servicesShmSemId, servicesShmId;
+	int sportelliShmSemId, sportelliShmId;
 	if ((resourceCreationSemId = semget(RESOURCE_CREATION_SYNC_SEM_KEY, 0, 0)) == -1){
 		slog(EROGATORE, "erogatore_ticket.pid.%d.semget.erogatore_sync_sem.failed!", getpid());
 		err_exit(strerror(errno));
@@ -77,13 +78,24 @@ int main (int argc, char **argv){
 		slog(EROGATORE, "erogatore_ticket.pid.%d.shmget.service_shared_memory.failed!", getpid());
 		err_exit(strerror(errno));
 	}
+	//
+	if ((sportelliShmSemId = semget(SPORTELLI_SHM_SEM_KEY, 0, 0)) == -1){
+		slog(EROGATORE, "erogatore_ticket.pid.%d.semget.services_shm_sem.failed!", getpid());
+		err_exit(strerror(errno));
+	}	
+	
+	if ((sportelliShmId = shmget(SPORTELLI_SHARED_MEMORY_KEY, 0, 0)) == -1){
+		slog(EROGATORE, "erogatore_ticket.pid.%d.shmget.service_shared_memory.failed!", getpid());
+		err_exit(strerror(errno));
+	}
+
 	int days = 0;
 	pid_t pid;
 	TicketRequestAdt ticketRequest;
-	TicketAdtPtr ticketsPtr;
+	ServizioAdtPtr servicesPtr;
+	SportelloAdtPtr sportelliPtr;
 	MsgBuff msgBuff;
 	slog(EROGATORE, "erogatore_ticket.pid.%d.completed initialization", getpid());
-	//slog(EROGATORE, "erogatore_ticket.pid.%d.waiting for simulation to start", getpid());	
 	if (release_sem(erogatoreSemId, 0) == -1){
 		slog(EROGATORE, "erogatore_ticket.pid.%d.release_sem.erogatore_sync_sem.semun.0.failed!", getpid());
 		err_exit(strerror(errno));
@@ -101,7 +113,7 @@ int main (int argc, char **argv){
 			err_exit(strerror(errno));
 		}	
 		if (pid == 0){			/* child code */
-			signal(SIGTERM, signalHandler);
+			signal(SIGTERM, erogatoreSignalHandler);
 			while (!eod){
 				slog(EROGATORE, "erogatore_ticket.child.pid.%d.waiting tickets request", getpid());
 				if (msgrcv(ticketsMsgQueueId, &msgBuff, sizeof(msgBuff) - sizeof(long), UTENTE_GROUP, 0) == -1){
@@ -125,32 +137,52 @@ int main (int argc, char **argv){
 					err_exit(strerror(errno));
 				}
 				slog(EROGATORE, "erogatore_ticket.child.pid.%d.reserved sem for services shared memory", getpid());	
-				errno = 0;
-				ticketsPtr = shmat(servicesShmId, NULL, SHM_RND);
-				if (errno != 0){
+				servicesPtr = shmat(servicesShmId, NULL, SHM_RND);
+				if (servicesPtr == (void*)-1){
 					slog(EROGATORE, "erogatore_ticket.child.pid.%d.shmat.services shm.failed", getpid());	
 					err_exit(strerror(errno));
 				}
 				slog(EROGATORE, "erogatore_ticket.child.pid.%d.accessed services shared memory", getpid());	
-				int i = 0;
-				while (i < NUMBER_OF_SERVICES){
-					//printf("service: %s - temp: %d - available: %s\n", ticketsPtr[i].servizio, ticketsPtr[i].tempario, ticketsPtr[i].serviceAvailable?"true":"false");
-					if (strcmp(ticketsPtr[i].servizio, msgBuff.payload.msg) == 0){
-						ticketRequest.ticket = ticketsPtr[i];
+				for (int i = 0; i < NUMBER_OF_SERVICES; i++){
+					if (strcmp(servicesPtr[i].name, msgBuff.payload.msg) == 0){
+						ticketRequest.ticket.se = servicesPtr[i];
+						ticketRequest.ticket.eod = eod;
 						break;
 					}
-					i++;
 				}
-				slog(EROGATORE, "erogatore_ticket.child.pid.%d.ticket requested: service: %s - tempario: %d - available: %s", getpid(), ticketRequest.ticket.servizio, ticketRequest.ticket.tempario, ticketRequest.ticket.serviceAvailable ? "true" : "false");
 				//TODO impostare il tempario a +- 50% del valore iniziale
 				if (release_sem(servicesShmSemId, 0) == -1){
 					slog(EROGATORE, "erogatore_ticket.child.pid.%d.release_sem.services shm sem.failed!", getpid());
 					err_exit(strerror(errno));
 				}
-				if (shmdt(ticketsPtr) == -1){
+				if (shmdt(servicesPtr) == -1){
 					slog(EROGATORE, "erogatore_ticket.child.pid.%d.shmdt.services shm.failed!", getpid());
 					return -1;
 				}
+				if (reserve_sem(sportelliShmSemId, 0) == -1){
+					slog(EROGATORE, "erogatore.pid.%d.reserve_sem.sportelli_shm_sem.failed", getpid());
+					err_exit(strerror(errno));
+				}
+				sportelliPtr = shmat(sportelliShmId, NULL, SHM_RND);
+				if (sportelliPtr == (void*) -1){
+					slog(EROGATORE, "erogatore.pid.%d.shmat.sportelli.failed", getpid());
+					err_exit(strerror(errno));
+				}	
+				for (int i = 0; i < configuration.nofWorkerSeats; i++){
+					if (strcmp(sportelliPtr[i].serviceName, msgBuff.payload.msg) == 0){
+						ticketRequest.ticket.sp = sportelliPtr[i];
+						break;	
+					}
+				}
+				if (release_sem(sportelliShmSemId, 0) == -1){
+					slog(EROGATORE, "erogatore.pid.%d.release_sem.sportelli_shm_sem.failed", getpid());
+					err_exit(strerror(errno));
+				}
+				if (shmdt(sportelliPtr) == -1){
+					slog(EROGATORE, "erogatore_ticket.child.pid.%d.shmdt.services shm.failed!", getpid());
+					return -1;
+				}
+				
 				ticketRequest.mtype = msgBuff.payload.senderPid;
 				if (msgsnd(ticketsMsgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), 0) == -1){
 					slog(EROGATORE, "erogatore_ticket.child.pid.%d.msgsnd.tickets msg queue.failed!", getpid());

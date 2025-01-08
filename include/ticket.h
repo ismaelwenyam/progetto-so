@@ -2,43 +2,16 @@
 #define TICKET_H
 
 #include <stdbool.h>
+#include "sportello_api.h"
+#include "services.h"
 
 #define MSG_QUEUE_KEY 11111
-#define TICKET_LEN 4
 
-typedef struct sportello Sportello, *SportelloPtr;
-struct sportello {
-	pid_t operatorPid;		/* pid dell'operatore */
-	bool deskAvailable;
-	int deskSemId;		/* id del semaforo su cui l'operatore lavora generato da ogni sportello*/
-	int deskSemun;		/* semun del semaforo su cui l'operatore lavora */
-	int workerDeskSemId;	/* id del semaforo su cui l'utente si mette in fila */
-	int workerDeskSemun;	/* semun */
-	SportelloPtr nextSportello;
-};
-
-typedef struct sportelloSet SportelloSetAdt, *SportelloSetAdtPtr;
-struct sportelloSet {
-	int size;
-	SportelloPtr front;
-};
-
-SportelloPtr mkSportello(pid_t, bool, int, int, int, int);
-bool dsSportello(SportelloPtr);
-
-SportelloSetAdtPtr mkSportelloSet ();
-bool dsSportelloSetAdt (SportelloSetAdtPtr*);
-bool addSportello (SportelloSetAdtPtr, SportelloPtr);
-bool removeSportello (SportelloSetAdtPtr, pid_t);
-
-typedef struct ticket TicketAdt, *TicketAdtPtr;
+typedef struct ticket TicketAdt;
 struct ticket {
-	char servizio[TICKET_LEN];
-	int tempario;
-	bool serviceAvailable;
+	ServizioAdt se;
 	bool eod;
-	int index;
-	SportelloSetAdtPtr sportelli;
+	SportelloAdt sp;
 };
 
 typedef struct ticketRequest TicketRequestAdt, *TicketRequestAdtPtr;

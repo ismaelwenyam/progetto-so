@@ -10,7 +10,7 @@
 #include "simerr.h"
 #include "logapi.h"
 #include "services.h"
-#include "ticket.h"
+#include "sportello_api.h"
 #include "simulation_stats.h"
 #include "semapi.h"
 #include "shmapi.h"
@@ -66,6 +66,7 @@ int main (int argc, char **argv){
 	int erogatoreSemId, utenteSemId, operatoreSemId, sportelloSemId;
 	int statsShmSemId, servicesShmSemId;
 	int servicesShmId, statisticsShmId;
+	int sportelliShmSemId, sportelliShmId;
 	int dirMsgQueueId, serviceMsgqId;
 	slog(DIRETTORE, "direttore.pid.%d.setup.start", getpid());
 	if ((resourceCreationSemId = semget(RESOURCE_CREATION_SYNC_SEM_KEY, 1, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
@@ -105,13 +106,13 @@ int main (int argc, char **argv){
 
 	//creazione semaforo per sincronizzazione operatore
 	slog(DIRETTORE, "direttore.pid.%d.creating operatore_sync_sem...", getpid());	
-	if ((operatoreSemId = semget(OPERATORE_SYNC_SEM, 3, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
+	if ((operatoreSemId = semget(OPERATORE_SYNC_SEM, 5, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
 		slog(DIRETTORE, "direttore.pid.%d.semget.operatore_sync_sem.failed", getpid());
 		err_exit(strerror(errno));
 	}
 	slog(DIRETTORE, "direttore.pid.%d.creating operatore_sync_sem.ok!", getpid());	
-	if (init_sem_in_use(operatoreSemId, 0) == -1 || init_sem_in_use(operatoreSemId, 1) == -1 || init_sem_in_use(operatoreSemId, 2) == -1){
-		slog(DIRETTORE, "direttore.pid.%d.init_sem_in_use(3).operatoresem.failed!", getpid());
+	if (init_sem_in_use(operatoreSemId, 0) == -1 || init_sem_in_use(operatoreSemId, 1) == -1 || init_sem_in_use(operatoreSemId, 2) == -1 || init_sem_in_use(operatoreSemId, 3) == -1 || init_sem_in_use(operatoreSemId, 4) == -1) {
+		slog(DIRETTORE, "direttore.pid.%d.init_sem_in_use(5).operatoresem.failed!", getpid());
 		err_exit(strerror(errno));
 	}
 	// creazione della coda di messaggi per i processi di tipo operatore
@@ -138,6 +139,7 @@ int main (int argc, char **argv){
 		slog(DIRETTORE, "direttore.pid.%d.semget.ipc_creat.sem access services shm", getpid());
 		err_exit(strerror(errno));
 	}
+	slog(DIRETTORE, "direttore.pid.%d.services shm sem id: %d", getpid(), servicesShmSemId);
 	slog(DIRETTORE, "direttore.pid.%d.semget.ipc_creat.sem access services shm.ok!", getpid());
 	if (init_sem_in_use(servicesShmSemId, 0) == -1){
 		slog(DIRETTORE, "direttore.pid.%d.init_sem_in_use.servicesShmSem.failed!", getpid());
@@ -145,17 +147,36 @@ int main (int argc, char **argv){
 	}
 
 	slog(DIRETTORE, "direttore.pid.%d.creating shared memory for services...", getpid());	
-	if ((servicesShmId = shmget(SERVICE_SHARED_MEMORY, sizeof(TicketAdt) * NUMBER_OF_SERVICES, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR)) == -1){
+	if ((servicesShmId = shmget(SERVICE_SHARED_MEMORY, sizeof(ServizioAdt) * NUMBER_OF_SERVICES, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR)) == -1){
 		slog(DIRETTORE, "direttore.pid.%d.shmget.services shared memory failed", getpid());
 		err_exit(strerror(errno));
 	}
 	slog(DIRETTORE, "direttore.pid.%d.creating services shared memory.ok!", getpid());	
-	
 	//funzione per l' inserimento dei servizi
 	if (writeServicesInShm(servicesShmId, servicesShmSemId) == -1){
 		slog(DIRETTORE, "direttore.pid.%d.writeServicesInShm.failed!", getpid());
 		err_exit(strerror(errno));
 	}
+	slog(DIRETTORE, "direttore.pid.%d.writeServicesInShm.ok", getpid());
+	
+	//creazione memoria condivisa per sportelli
+	slog(DIRETTORE, "direttore.pid.%d.creating sem for accessing sportelli shared memory", getpid());
+	if ((sportelliShmSemId = semget(SPORTELLI_SHM_SEM_KEY, 1, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.semget.ipc_creat.sem access sportelli shm", getpid());
+		err_exit(strerror(errno));
+	}
+	slog(DIRETTORE, "direttore.pid.%d.semget.ipc_creat.sem access sportelli shm.ok!", getpid());
+	if (init_sem_available(sportelliShmSemId, 0) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.init_sem_in_use.sportelli_shm_sem.failed!", getpid());
+		err_exit(strerror(errno));
+	}
+
+	slog(DIRETTORE, "direttore.pid.%d.creating shared memory for services...", getpid());	
+	if ((sportelliShmId = shmget(SPORTELLI_SHARED_MEMORY_KEY, sizeof(SportelloAdt) * configuration.nofWorkerSeats, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR)) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.shmget.sportelli shared memory failed", getpid());
+		err_exit(strerror(errno));
+	}
+	slog(DIRETTORE, "direttore.pid.%d.creating sportelli shared memory.ok!", getpid());	
 
 	//creazione memoria condivisa per statistiche
 	slog(DIRETTORE, "direttore.pid.%d.creating sem for accessing statistics shared memory", getpid());
@@ -165,7 +186,7 @@ int main (int argc, char **argv){
 	}
 	slog(DIRETTORE, "direttore.pid.%d.semget.ipc_creat.sem access stats shm.ok!", getpid());
 	if (init_sem_available(statsShmSemId, 0) == -1){
-		slog(DIRETTORE, "direttore.pid.%d.init_sem_available.servicesShmSem.failed!", getpid());
+		slog(DIRETTORE, "direttore.pid.%d.init_sem_available.statsShmSem.failed!", getpid());
 		err_exit(strerror(errno));
 	}
 
@@ -254,10 +275,22 @@ int main (int argc, char **argv){
 	}
 	int days = 0;
 	int users = configuration.nofUsers;
+	SportelloAdtPtr sportelliPtr;
 	while (days < configuration.simDuration){
 		slog(DIRETTORE, "direttore.pid.%d.day: %d", getpid(), days+1);
 		
 		//TODO assegnare funzione agli sportelli
+		if (reserve_sem(sportelliShmSemId, 0) == -1){
+			slog(SPORTELLO, "direttore.pid.%d.reserve_sem.sportelli shm sem.failed!", getpid());
+			err_exit(strerror(errno));
+		}
+		sportelliPtr = shmat(sportelliShmId, NULL, SHM_RND);
+		if (sportelliPtr == (void*) -1){
+			slog(SPORTELLO, "direttore.pid.%d.shmat.failed", getpid());
+			err_exit(strerror(errno));
+		}
+		
+		slog(DIRETTORE, "direttore.pid.%d.waiting sportelli request of role", getpid());
 		for (int i = 0; i < configuration.nofWorkerSeats; i++){
 			if (msgrcv(dirMsgQueueId, &msgBuff, sizeof(msgBuff) - sizeof(long), DIRETTORE_GROUP, 0) == -1){
 				slog(DIRETTORE, "direttore.pid.%d.msgrcv.from sportello group.failed!", getpid());
@@ -271,73 +304,121 @@ int main (int argc, char **argv){
 				slog(DIRETTORE, "direttore.pid.%d.msgsnd.to sportello group.failed!", getpid());
 				err_exit(strerror(errno));
 			}
+			strcpy(sportelliPtr[i].serviceName, services[servizio]);
 
 		}
+		if (release_sem(sportelliShmSemId, 0) == -1){
+			slog(SPORTELLO, "direttore.pid.%d.release_sem.sportelli shm sem.failed!", getpid());
+			err_exit(strerror(errno));
+		}
+		if (shmdt(sportelliPtr) == -1){
+			slog(SPORTELLO, "direttore.pid.%d.shmdt.sportelli shm.failed!", getpid());
+			return -1;
+		}
+		// ensures that worker seats updates sportelli shm 
+		for (int i = 0; i < configuration.nofWorkerSeats; i++){
+			if (reserve_sem(sportelloSemId, 0) == -1){
+				slog(DIRETTORE, "direttore.pid.%d.reserve_sem.sportello sem.failed!", getpid());
+				err_exit(strerror(errno));
+			}
+		}
+		slog(DIRETTORE, "direttore.pid.%d.all sportello.updated sportelli shm", getpid());
 		// ensures that workers start working on start of day
 		for (int i = 0; i < configuration.nofWorkers; i++){
 			if (release_sem(operatoreSemId, 1) == -1){
-				//TODO handle errors
+				slog(DIRETTORE, "direttore.pid.%d.release_sem.operatore sem.failed!", getpid());
+				err_exit(strerror(errno));
 			}
 		}
-		
-		// ensures that erogatore start working on start of day
-		if (release_sem(erogatoreSemId, 1) == -1){
-			//TODO handle errors
+		// ensures that workers updates sportelli shm
+		for (int i = 0; i < configuration.nofWorkers; i++){
+			if (reserve_sem(operatoreSemId, 2) == -1){
+				slog(DIRETTORE, "direttore.pid.%d.release_sem.operatore sem.failed!", getpid());
+				err_exit(strerror(errno));
+			}
 		}
+		slog(DIRETTORE, "direttore.pid.%d.all operatori.updated sportelli shm", getpid());
+	
+		// ensures that erogatore start working on start of day
+		slog(DIRETTORE, "direttore.pid.%d.releasing erogatore to start day", getpid());
+		if (release_sem(erogatoreSemId, 1) == -1){
+			slog(DIRETTORE, "direttore.pid.%d.release_sem.erogatore sem.failed!", getpid());
+			err_exit(strerror(errno));
+		}
+		slog(DIRETTORE, "direttore.pid.%d.released erogatore", getpid());
 
 		// ensures that users start on start of day
 		for (int i = 0; i < users; i++){
 			if (release_sem(utenteSemId, 1) == -1){
-				//TODO handle errors
+				slog(DIRETTORE, "direttore.pid.%d.release_sem.utente sem.failed!", getpid());
+				err_exit(strerror(errno));
 			}
 
 		}
 
 		slog(DIRETTORE, "direttore.pid.%d.sleeping 10s...", getpid());
-		sleep(1);
+		sleep(10);
 		slog(DIRETTORE, "direttore.pid.%d.wake up", getpid());
 		//pause();
 
 		// allow erogatore to kill its child
 		if (release_sem(erogatoreSemId, 3) == -1){
-			//TODO handle errors
+			slog(DIRETTORE, "direttore.pid.%d.release_sem.erogatore sem.failed!", getpid());
+			err_exit(strerror(errno));
 
 		}
 		
 		// ensure that erogatore has completed the day
 		if (reserve_sem(erogatoreSemId, 2) == -1){
-			//TODO handle errors
-
+			slog(DIRETTORE, "direttore.pid.%d.reserve_sem.erogatore sem.failed!", getpid());
+			err_exit(strerror(errno));
 		}
 		
 		// ensure that users has completed the day
+		slog(DIRETTORE, "direttore.pid.%d.waiting users at desk to complete day", getpid());
 		for (int i = 0; i < users; i++){
 			if (reserve_sem(utenteSemId, 2) == -1){
-				//TODO handle errors
-
+				slog(DIRETTORE, "direttore.pid.%d.reserve_sem.utente sem.failed!", getpid());
+				err_exit(strerror(errno));
 			}
 
 		}
+		slog(DIRETTORE, "direttore.pid.%d.waiting sportelli on sem: %d semun: 1 to complete day", getpid(), sportelloSemId);
 		for (int i = 0; i < configuration.nofWorkerSeats; i++){
-			if (release_sem(sportelloSemId, 0) == -1){
-				//TODO handle errors
+			if (reserve_sem(sportelloSemId, 1) == -1){
+				slog(DIRETTORE, "direttore.pid.%d.reserve_sem.sportello sem.failed!", getpid());
+				err_exit(strerror(errno));
 			}
 		}
 		
+		slog(DIRETTORE, "direttore.pid.%d.notifying worker of eod...", getpid());
+		// notify workers of end of day	
+		for (int i = 0; i < configuration.nofWorkers; i++){
+			if (release_sem(operatoreSemId, 3) == -1){
+				slog(DIRETTORE, "direttore.pid.%d.release_sem.operatore sem.failed!", getpid());
+				err_exit(strerror(errno));
+			}
+		}
+		slog(DIRETTORE, "direttore.pid.%d.notified worker of eod", getpid());
+		slog(DIRETTORE, "direttore.pid.%d.waiting operatori to complete day...", getpid());
 		// ensure that workers has completed the day
 		for (int i = 0; i < configuration.nofWorkers; i++){
-			if (reserve_sem(operatoreSemId, 2) == -1){
-				//TODO handle errors
+			if (reserve_sem(operatoreSemId, 4) == -1){
+				slog(DIRETTORE, "direttore.pid.%d.reserve_sem.operatore sem.failed!", getpid());
+				err_exit(strerror(errno));
 			}
 		}
+		slog(DIRETTORE, "direttore.pid.%d.operatori completed day", getpid());
 		
 		if (reserve_sem(servicesShmSemId, 0) == -1){
-			//TODO log error message and exit
+			slog(DIRETTORE, "direttore.pid.%d.reserve_sem.services shm sem.failed!", getpid());
+			err_exit(strerror(errno));
 		}
 		slog(DIRETTORE, "direttore.pid.%d.daily stats", getpid());	
 		
 		if (release_sem(servicesShmSemId, 0) == -1){
-			//TODO log error message and exit
+			slog(DIRETTORE, "direttore.pid.%d.release_sem.services shm sem.failed!", getpid());
+			err_exit(strerror(errno));
 		}
 
 
@@ -455,61 +536,36 @@ void create_utente(int nofUsers){
 
 int writeServicesInShm(int shmId, int semId){
 	slog(DIRETTORE, "direttore.pid.%d.writeServicesInShm.start", getpid());
-	errno = 0;
-	TicketAdtPtr tickets = shmat(shmId, NULL, SHM_RND);
-	if (errno != 0){
+	ServizioAdtPtr servicesPtr = shmat(shmId, NULL, SHM_RND);
+	if (servicesPtr == (void*)-1){
 		slog(DIRETTORE, "direttore.pid.%d.shmat.services shm.failed!", getpid());
 		return -1;
 	}
-	SportelloSetAdtPtr sportelli;
 	for (size_t i = 0; i < NUMBER_OF_SERVICES; i++){
-		sportelli = mkSportelloSet();
-		if (sportelli == NULL){
-			slog(DIRETTORE, "direttore.pid.%d.couldn't istantiate sportelloSetAdt", getpid());
-			err_exit(strerror(errno));
-		}
 		if (strcmp(services[i], IRP) == 0){
-			strcpy(tickets[i].servizio, IRP);
-			tickets[i].tempario = 10;
-			tickets[i].serviceAvailable = true;	
-			tickets[i].eod = false;
-			tickets[i].index = 0;
-			tickets[i].sportelli = sportelli;
+			strcpy(servicesPtr[i].name, IRP);
+			servicesPtr[i].temp = 10;
+			servicesPtr[i].available = 1;
 		}else if (strcmp(services[i], ILR) == 0){
-			strcpy(tickets[i].servizio, ILR);
-			tickets[i].tempario = 8;
-			tickets[i].serviceAvailable = true;	
-			tickets[i].eod = false;
-			tickets[i].index = 0;
-			tickets[i].sportelli = sportelli;
+			strcpy(servicesPtr[i].name, ILR);
+			servicesPtr[i].temp = 8;
+			servicesPtr[i].available = 1;
 		}else if (strcmp(services[i], PVB) == 0){
-			strcpy(tickets[i].servizio, PVB);
-			tickets[i].tempario = 6;
-			tickets[i].serviceAvailable = true;	
-			tickets[i].eod = false;
-			tickets[i].index = 0;
-			tickets[i].sportelli = sportelli;
+			strcpy(servicesPtr[i].name, PVB);
+			servicesPtr[i].temp = 6;
+			servicesPtr[i].available = 1;
 		}else if (strcmp(services[i], PBP) == 0){
-			strcpy(tickets[i].servizio, PBP);
-			tickets[i].tempario = 8;
-			tickets[i].serviceAvailable = true;	
-			tickets[i].eod = false;
-			tickets[i].index = 0;
-			tickets[i].sportelli = sportelli;
+			strcpy(servicesPtr[i].name, PBP);
+			servicesPtr[i].temp = 8;
+			servicesPtr[i].available = 1;
 		}else if (strcmp(services[i], APF) == 0){
-			strcpy(tickets[i].servizio, APF);
-			tickets[i].tempario = 20;
-			tickets[i].serviceAvailable = true;	
-			tickets[i].eod = false;
-			tickets[i].index = 0;
-			tickets[i].sportelli = sportelli;
+			strcpy(servicesPtr[i].name, APF);
+			servicesPtr[i].temp = 20;
+			servicesPtr[i].available = 1;
 		}else{
-			strcpy(tickets[i].servizio, AOB);
-			tickets[i].tempario = 20;
-			tickets[i].serviceAvailable = true;	
-			tickets[i].eod = false;
-			tickets[i].index = 0;
-			tickets[i].sportelli = sportelli;
+			strcpy(servicesPtr[i].name, AOB);
+			servicesPtr[i].temp = 20;
+			servicesPtr[i].available = 1;
 		}
 	}	
 	if (release_sem(semId, 0) == -1){
@@ -517,7 +573,7 @@ int writeServicesInShm(int shmId, int semId){
 		return -1;
 	}
 	
-	if (shmdt(tickets) == -1){
+	if (shmdt(servicesPtr) == -1){
 		slog(DIRETTORE, "direttore.pid.%d.shmdt.services shm.failed!", getpid());
 		return -1;
 	}
