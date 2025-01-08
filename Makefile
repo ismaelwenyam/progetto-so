@@ -15,22 +15,22 @@ src/%.o: src/%.c
 	$(CC) $(INCLUDES) $(CFLAGS) -c $< -o $@
 
 # Link degli eseguibili
-direttore: src/direttore.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o src/sportello_api.o
+direttore: src/direttore.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o 
 	$(CC) -o $@ $^
 
-erogatore_ticket: src/erogatore_ticket.o src/semapi.o src/simerr.o src/logapi.o src/simulation_configuration.o src/sportello_api.o
+erogatore_ticket: src/erogatore_ticket.o src/semapi.o src/simerr.o src/logapi.o src/simulation_configuration.o 
 	$(CC) -o $@ $^
 
-utente: src/utente.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o src/sportello_api.o
+utente: src/utente.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o 
 	$(CC) -o $@ $^
 
-erogatore_ticket: src/erogatore_ticket.o src/semapi.o src/simerr.o src/logapi.o src/sportello_api.o
+erogatore_ticket: src/erogatore_ticket.o src/semapi.o src/simerr.o src/logapi.o 
 	$(CC) -o $@ $^
 
-sportello: src/sportello.o src/simerr.o src/logapi.o src/semapi.o src/simulation_configuration.o src/sportello_api.o
+sportello: src/sportello.o src/simerr.o src/logapi.o src/semapi.o src/simulation_configuration.o 
 	$(CC) -o $@ $^
 
-operatore: src/operatore.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o src/sportello_api.o
+operatore: src/operatore.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o 
 	$(CC) -o $@ $^
 
 clean:
