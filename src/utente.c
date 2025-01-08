@@ -6,7 +6,7 @@
 
 #include "simerr.h"
 #include "logapi.h"
-#include "services.h"
+#include "service_api.h"
 #include "ticket.h"
 #include "semapi.h"
 #include "shmapi.h"

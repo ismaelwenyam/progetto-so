@@ -1,5 +1,5 @@
-#ifndef SERVICES_H
-#define SERVICES_H
+#ifndef SERVICE_API_H
+#define SERVICE_API_H
 
 #define NUMBER_OF_SERVICES 6
 
