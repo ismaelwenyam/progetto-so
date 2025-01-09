@@ -330,6 +330,13 @@ int main (int argc, char **argv){
 						err_exit(strerror(errno));
 					}
 					strcpy(sportelliPtr[i].serviceName, servicesPtr[servizio].name);
+					sportelliPtr[i].sportelloPid = msgBuff.mtype;
+					sportelliPtr[i].operatorPid = 0;
+					sportelliPtr[i].deskAvailable = 1;
+					sportelliPtr[i].deskSemId = 0;
+					sportelliPtr[i].deskSemun = 0;
+					sportelliPtr[i].workerDeskSemId = 0;
+					sportelliPtr[i].workerDeskSemun = 0;
 					break;
 				}	
 				
@@ -379,6 +386,8 @@ int main (int argc, char **argv){
 			}
 		}
 		slog(DIRETTORE, "direttore.pid.%d.all operatori.updated sportelli shm", getpid());
+		print_services_in_shm(servicesShmId, servicesShmSemId);
+		print_sportelli_in_shm(sportelliShmId, sportelliShmSemId, configuration.nofWorkerSeats);
 	
 		// ensures that erogatore start working on start of day
 		slog(DIRETTORE, "direttore.pid.%d.releasing erogatore to start day", getpid());
@@ -398,7 +407,7 @@ int main (int argc, char **argv){
 		}
 
 		slog(DIRETTORE, "direttore.pid.%d.sleeping 10s...", getpid());
-		sleep(10);
+		sleep(1);
 		slog(DIRETTORE, "direttore.pid.%d.wake up", getpid());
 		//pause();
 
@@ -461,12 +470,10 @@ int main (int argc, char **argv){
 			slog(DIRETTORE, "direttore.pid.%d.release_sem.services shm sem.failed!", getpid());
 			err_exit(strerror(errno));
 		}
-		print_services_in_shm(servicesShmId, servicesShmSemId);
-		print_sportelli_in_shm(sportelliShmId, sportelliShmSemId, configuration.nofWorkerSeats);
-
 
 		days++;
 	}
+	slog(DIRETTORE, "direttore.pid.%d.simulation stats", getpid());
 	
 	
 	

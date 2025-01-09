@@ -88,7 +88,7 @@ int main (int argc, char **argv) {
 		}
 		slog(SPORTELLO, "sportello.pid.%d.updating sportelli shm...", getpid());
 		for (int i = 0; i < configuration.nofWorkerSeats; i++){
-			if (strcmp(sportelliPtr[i].serviceName, msgBuff.payload.msg) == 0){
+			if (strcmp(sportelliPtr[i].serviceName, msgBuff.payload.msg) == 0 && sportelliPtr[i].sportelloPid == getpid()){
 				strcpy(sportelliPtr[i].serviceName, msgBuff.payload.msg);
 				sportelliPtr[i].deskAvailable = 1;
 				sportelliPtr[i].deskSemId = operatoreSportelloSemId;

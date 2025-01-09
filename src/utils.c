@@ -10,7 +10,7 @@
 
 
 void print_services_in_shm (int shmId, int semId){
-	printf("start print_services_in_shm\n");
+	//printf("start print_services_in_shm\n");
 	if (reserve_sem(semId, 0) == -1){
 		printf("error in reserving sem\n");
 		err_exit(strerror(errno));
@@ -35,11 +35,11 @@ void print_services_in_shm (int shmId, int semId){
 		printf("error in shmdt\n");
 		err_exit(strerror(errno));
 	}
-	printf("end print_services_in_shm\n");
+	//printf("end print_services_in_shm\n");
 }
 
 void print_sportelli_in_shm (int shmId, int semId, int nofWorkerSeats){
-	printf("start print_sportelli_in_shm\n");
+	//printf("start print_sportelli_in_shm\n");
 	if (reserve_sem(semId, 0) == -1){
 		printf("error in reserving sem\n");
 		err_exit(strerror(errno));
@@ -49,9 +49,9 @@ void print_sportelli_in_shm (int shmId, int semId, int nofWorkerSeats){
 		printf("shmat failed\n");
 		err_exit(strerror(errno));
 	}
-	printf("%s %s %s %s %s %s %s\n", "service", "operator pid", "available", "deskSemId", "deskSemun", "workerDeskSemId", "workerDeskSemun");
+	printf("%s %s %s %s %s %s %s %s\n", "service", "sportello_pid", "operator_pid", "available", "deskSemId", "deskSemun", "workerDeskSemId", "workerDeskSemun");
 	for (int i = 0; i < nofWorkerSeats; i++){
-		printf("%7s%12d%10s%10d%10d%16d%16d\n", sportelliPtr[i].serviceName, sportelliPtr[i].operatorPid, sportelliPtr[i].deskAvailable ? "true" : "false", sportelliPtr[i].deskSemId, sportelliPtr[i].deskSemun, sportelliPtr[i].workerDeskSemId, sportelliPtr[i].workerDeskSemun);
+		printf("%7s%14d%12d%10s%10d%10d%16d%16d\n", sportelliPtr[i].serviceName, sportelliPtr[i].sportelloPid, sportelliPtr[i].operatorPid, sportelliPtr[i].deskAvailable ? "true" : "false", sportelliPtr[i].deskSemId, sportelliPtr[i].deskSemun, sportelliPtr[i].workerDeskSemId, sportelliPtr[i].workerDeskSemun);
 
 	}
 
@@ -64,7 +64,7 @@ void print_sportelli_in_shm (int shmId, int semId, int nofWorkerSeats){
 		printf("error in shmdt\n");
 		err_exit(strerror(errno));
 	}
-	printf("end print_sportelli_in_shm\n");
+	//printf("end print_sportelli_in_shm\n");
 }
 
 

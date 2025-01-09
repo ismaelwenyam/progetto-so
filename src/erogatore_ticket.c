@@ -114,6 +114,8 @@ int main (int argc, char **argv){
 		}	
 		if (pid == 0){			/* child code */
 			signal(SIGTERM, erogatoreSignalHandler);
+			eod = false;
+			slog(EROGATORE, "erogatore_ticket.child.pid.%d.eod: %s", getpid(), eod ? "true" : "false");
 			while (!eod){
 				slog(EROGATORE, "erogatore_ticket.child.pid.%d.waiting tickets request", getpid());
 				if (msgrcv(ticketsMsgQueueId, &msgBuff, sizeof(msgBuff) - sizeof(long), UTENTE_GROUP, 0) == -1){
@@ -121,7 +123,7 @@ int main (int argc, char **argv){
 					if (errno == EINTR){
 						//TODO
 						ticketRequest.mtype = msgBuff.payload.senderPid;
-						ticketRequest.ticket.eod = true; 
+						ticketRequest.ticket.eod = eod; 
 						if (msgsnd(ticketsMsgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), 0) == -1){
 							slog(EROGATORE, "erogatore_ticket.child.pid.%d.msgsnd.notifying user: eod.failed!", getpid());
 							err_exit(strerror(errno));
@@ -146,7 +148,8 @@ int main (int argc, char **argv){
 				for (int i = 0; i < NUMBER_OF_SERVICES; i++){
 					if (strcmp(servicesPtr[i].name, msgBuff.payload.msg) == 0){
 						ticketRequest.ticket.se = servicesPtr[i];
-						ticketRequest.ticket.eod = eod;
+						//TODO fix eod, perche ogni tanto riceve erroneamente eod
+						ticketRequest.ticket.eod = false;
 						break;
 					}
 				}
@@ -168,6 +171,9 @@ int main (int argc, char **argv){
 					slog(EROGATORE, "erogatore.pid.%d.shmat.sportelli.failed", getpid());
 					err_exit(strerror(errno));
 				}	
+				ticketRequest.ticket.sp.operatorPid = 0;
+				ticketRequest.ticket.sp.workerDeskSemId = 0;
+				ticketRequest.ticket.sp.workerDeskSemun = 0;
 				for (int i = 0; i < configuration.nofWorkerSeats; i++){
 					if (strcmp(sportelliPtr[i].serviceName, msgBuff.payload.msg) == 0){
 						ticketRequest.ticket.sp = sportelliPtr[i];

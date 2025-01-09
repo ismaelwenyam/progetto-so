@@ -95,6 +95,7 @@ int main (int argc, char **argv){
 				slog(UTENTE, "utente.pid.%d.utenteSem.release_sem(%d, 2).failed", getpid(), utenteSemId);
 				err_exit(strerror(errno));
 			}
+			slog(UTENTE, "utente.pid.%d.release_sem.utent_sem:%d.semun:2", getpid(), utenteSemId);
 			days++;
 			continue;
 		}
@@ -168,6 +169,10 @@ int main (int argc, char **argv){
 			slog(UTENTE, "utente.pid.%d.received ticket for service: %s", getpid(), servicesList[i]);
 			sportello = ticketRequest.ticket.sp;	
 			slog(UTENTE, "utente.pid.%d.sportello: operatorPid: %d - workerDeskSemId: %d - workerDeskSemun: %d", getpid(), sportello.operatorPid, sportello.workerDeskSemId, sportello.workerDeskSemun);
+			if (sportello.operatorPid == 0){
+				slog(UTENTE, "utente.pid.%d.service: %s available but no operator executing it", getpid(), servicesList[i]);
+				break;
+			}
 			// Il tempo di erogazione del servizio viene calcolato dal momento in cui l'utente si mette in fila.
 			// TODO calcolare tempo si start e inserirlo nelle statistiche (tenendo conto del parametro n_nano_secs) (tempo di attesa, erogazione)
 			if (reserve_sem(sportello.workerDeskSemId, sportello.workerDeskSemun) == -1){
@@ -196,6 +201,16 @@ int main (int argc, char **argv){
 			
 			//TODO attende il tempario	
 			// TODO calcolare tempo di end e inserirlo nelle statistiche (tempo di erogazione servizio)
+			if (release_sem(sportello.workerDeskSemId, sportello.workerDeskSemun) == -1){
+				slog(UTENTE, 
+					"utente.pid.%d.couldn't release sportello(operatore sem).semid.%d.semun.%d", 
+					getpid());
+				if (requests > 1) {
+					slog(UTENTE, "utente.pid.%d.proceding to request next service ticket", getpid());
+					continue;
+				}
+				break;
+			}
 		}
 
 		if (release_sem(utenteSemId, 2) == -1){
