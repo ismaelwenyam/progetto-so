@@ -126,6 +126,7 @@ int main (int argc, char **argv){
 		}		
 		if (pid == 0){		/* child code */
 			signal(SIGTERM, signalHandler);
+			eod = false;
 			slog(OPERATORE, "operatore.child.pid.%d.looking for desk for service %s", getpid(), role);	
 			if (reserve_sem(sportelliShmSemId, 0) == -1){
 				slog(OPERATORE, "operatore.child.pid.%d.reserve_sem.sportelli shm sem.failed", getpid());
@@ -145,6 +146,7 @@ int main (int argc, char **argv){
 			slog(OPERATORE, "operatore.child.pid.%d.updating sportello with info...", getpid());
 			bool sportelloFound = false;
 			bool sportelloTaken = false;
+			int index = 0;
 			for (int i = 0; i < configuration.nofWorkerSeats && !sportelloFound; i++){
 				if (strcmp(sportelliPtr[i].serviceName, role) != 0) continue;
 				//TODO migliorare la scelta dello sportello
@@ -155,9 +157,10 @@ int main (int argc, char **argv){
 					sportelliPtr[i].operatorPid = getpid();
 					sportelliPtr[i].workerDeskSemId = utenteOperatoreSemId;
 					sportelliPtr[i].workerDeskSemun = 0;
-					deskSemId = sportelliPtr[i].deskSemId;
-					deskSemun = sportelliPtr[i].deskSemun;
 				}
+				deskSemId = sportelliPtr[i].deskSemId;
+				deskSemun = sportelliPtr[i].deskSemun;
+				index = i;
 			}
 			if (!sportelloFound){
 				slog(OPERATORE, "operatore.child.pid.%d.sportello not found for service: %s", getpid(), msgBuff.payload.msg);
@@ -170,6 +173,7 @@ int main (int argc, char **argv){
 					err_exit(strerror(errno));
 				}
 				slog(OPERATORE, "operatore.child.pid.%d.release_sem.sportelli_shm_sem", getpid());
+				slog(OPERATORE, "operatore.child.pid.%d.exiting...", getpid());
 				exit(0);
 			}
 			slog(OPERATORE, "operatore.child.pid.%d.sportello: %d available: %s", getpid(), deskSemId, sportelloTaken ? "true" : "false");
@@ -189,27 +193,70 @@ int main (int argc, char **argv){
 				slog(OPERATORE, "operatore.child.pid.%d.shmdt.failed!", getpid());
 				err_exit(strerror(errno));
 			}
-			
+			//se sportelloTaken, allora sportello available quindi operatore lo puo prendere altrimenti no	
+			slog(OPERATORE, "operatore.child.pid.%d.sportello available: %s", getpid(), sportelloTaken ? "true" : "false");	
+			if (release_sem(operatoreSemId, 2) == -1){
+				slog(OPERATORE, "operatore.pid.%d.reserve_sem.operatore sem.semun:2.failed", getpid());
+				err_exit(strerror(errno));
+			}
 			slog(OPERATORE, "operatore.child.pid.%d.reserving sportello", getpid());
+			
 			if (reserve_sem(deskSemId, deskSemun) == -1){
 				if (release_sem(operatoreSemId, 2) == -1){
 					slog(OPERATORE, "operatore.pid.%d.reserve_sem.operatore sem.semun:2.failed", getpid());
 					err_exit(strerror(errno));
 				}
-				slog(OPERATORE, "operatore.child.pid.%d.reserve_sem.deskSemId: %d - deskSemun: %d", getpid(), deskSemId, deskSemun);
+				if (errno == EINTR){
+					slog(OPERATORE, "operatore.child.pid.%d.reserve_sem.deskSemId: %d - deskSemun: %d.failed due eod", getpid(), deskSemId, deskSemun);
+					exit(0);
+				}
+				slog(OPERATORE, "operatore.child.pid.%d.reserve_sem.deskSemId: %d - deskSemun: %d.failed", getpid(), deskSemId, deskSemun);
 				err_exit(strerror(errno));
 			}
 			slog(OPERATORE, "operatore.child.pid.%d.reserved.sportello.%d.semun.%d", getpid(), deskSemId, deskSemun);
+			//un operatore attivo, operatore che lavora ad uno sportello che fornisce la sua mansione.
+			if (add_operator_to_gen_stat(statisticsShmId, statsShmSemId) == -1){
+				slog(OPERATORE, "operatore.child.pid.%d.failed to update stats", getpid());
+			}
+			slog(OPERATORE, "operatore.child.pid.%d.updated stats", getpid());
+			
+			//se sportello not taken, l'operatore addesso che ha preso lo sportello deve aggiornare le proprieta
 			if (!sportelloTaken){
 				slog(OPERATORE, "operatore.child.pid.%d.sportello.%d.semun.%d.not available at the moment", getpid(), deskSemId, deskSemun);
 				//TODO accedere alla memoria condivisa dei sportelli ed aggiornare l'operatorId
+				if (reserve_sem(sportelliShmSemId, 0) == -1){
+					slog(OPERATORE, "operatore.child.pid.%d.reserve_sem.sportelli shm sem.failed", getpid());
+					err_exit(strerror(errno));
+				}	
+				slog(OPERATORE, "operatore.child.pid.%d.reserve_sem.sportelli shm sem.ok", getpid());
+				sportelliPtr = shmat(sportelliShmId, NULL, SHM_RND);
+				if (sportelliPtr == (void*)-1){
+					slog(OPERATORE, "operatore.child.pid.%d.shmat.sportelli shm.failed!", getpid());
+					if (release_sem(sportelliShmSemId, 0) == -1){
+						slog(OPERATORE, "operatore.pid.%d.release_sem.sportelli_shm_sem.failed", getpid());
+						err_exit(strerror(errno));
+					}
+					err_exit(strerror(errno));
+				}
+				sportelliPtr[index].operatorPid = getpid();
+				sportelliPtr[index].deskAvailable = false;
+				sportelliPtr[index].workerDeskSemId = utenteOperatoreSemId;
+				sportelliPtr[index].deskSemun = 0;
+				if (release_sem(sportelliShmSemId, 0) == -1){
+					if (release_sem(operatoreSemId, 2) == -1){
+						slog(OPERATORE, "operatore.pid.%d.reserve_sem.operatore sem.semun:2.failed", getpid());
+						err_exit(strerror(errno));
+					}
+					slog(OPERATORE, "operatore.child.pid.%d.release_sem.services shm sem", getpid());
+					err_exit(strerror(errno));
+				}
+				if (shmdt(sportelliPtr) == -1){
+					slog(OPERATORE, "operatore.child.pid.%d.shmdt.failed!", getpid());
+					err_exit(strerror(errno));
+				}
+				
 				// ricordarsi di rilasciare operatoreSemId, 2
 				slog(OPERATORE, "operatore.child.pid.%d.updated services with info", getpid());
-			}
-				
-			if (release_sem(operatoreSemId, 2) == -1){
-				slog(OPERATORE, "operatore.pid.%d.reserve_sem.operatore sem.semun:2.failed", getpid());
-				err_exit(strerror(errno));
 			}
 			while (!eod && nofPause > 0){
 				slog(OPERATORE, "operatore.child.pid.%d.waiting services requests", getpid());
@@ -223,14 +270,49 @@ int main (int argc, char **argv){
 						err_exit(strerror(errno));
 					}
 					slog(OPERATORE, "operatore.child.pid.%d.release_sem.sportello.%d.semun.%d", getpid(), deskSemId, deskSemun);
-					err_exit(strerror(errno));
+					continue;
 				}
 				slog(OPERATORE, "operatore.child.pid.%d.received.service req from user: %d service: %s", getpid(), msgBuff.payload.senderPid, msgBuff.payload.msg);
 				//TODO aggiorna le statistiche
 				slog(OPERATORE, "operatore.child.pid.%d.updating stats for services: %s", getpid(), msgBuff.payload.msg);
 				if (nofPause > 0){
+					
+					//TODO notificare all'utente pause e aggiornare sportelli
+					if (reserve_sem(sportelliShmSemId, 0) == -1){
+						slog(OPERATORE, "operatore.child.pid.%d.reserve_sem.sportelli shm sem.failed", getpid());
+						err_exit(strerror(errno));
+					}	
+					slog(OPERATORE, "operatore.child.pid.%d.reserve_sem.sportelli shm sem.ok", getpid());
+					sportelliPtr = shmat(sportelliShmId, NULL, SHM_RND);
+					if (sportelliPtr == (void*)-1){
+						slog(OPERATORE, "operatore.child.pid.%d.shmat.sportelli shm.failed!", getpid());
+						if (release_sem(sportelliShmSemId, 0) == -1){
+							slog(OPERATORE, "operatore.pid.%d.release_sem.sportelli_shm_sem.failed", getpid());
+							err_exit(strerror(errno));
+						}
+						err_exit(strerror(errno));
+					}
+					sportelliPtr[index].operatorPid = 0;
+					sportelliPtr[index].deskAvailable = true;
+					sportelliPtr[index].workerDeskSemId = 0;
+					sportelliPtr[index].deskSemun = 0;
+					if (release_sem(sportelliShmSemId, 0) == -1){
+						if (release_sem(operatoreSemId, 2) == -1){
+							slog(OPERATORE, "operatore.pid.%d.reserve_sem.operatore sem.semun:2.failed", getpid());
+							err_exit(strerror(errno));
+						}
+						slog(OPERATORE, "operatore.child.pid.%d.release_sem.services shm sem", getpid());
+						err_exit(strerror(errno));
+					}
+					if (shmdt(sportelliPtr) == -1){
+						slog(OPERATORE, "operatore.child.pid.%d.shmdt.failed!", getpid());
+						err_exit(strerror(errno));
+					}
 					nofPause--;
 					slog(OPERATORE, "operatore.child.pid.%d.taking pause.remains %d pauses", getpid(), nofPause);
+					if (add_pause_to_gen_stat(statisticsShmId, statsShmSemId) == -1){
+						slog(OPERATORE, "operatore.child.pid.%d.failed to update pause stats", getpid());
+					}
 					break;
 				}
 			}
@@ -245,7 +327,7 @@ int main (int argc, char **argv){
 					/* parent code */
 		//gestire l'uccisione del figlio	
 		if (reserve_sem(operatoreSemId, 3) == -1){
-			slog(OPERATORE, "operatore.pid.%d.reserve_sem.operatore sem.semun:2.failed", getpid());
+			slog(OPERATORE, "operatore.pid.%d.reserve_sem.operatore sem.semun:3.failed", getpid());
 			err_exit(strerror(errno));
 		}
 		slog(OPERATORE, "operatore.pid.%d.received eod", getpid());
@@ -265,4 +347,54 @@ int main (int argc, char **argv){
 	}	
 	
 	
+}
+
+
+
+int add_operator_to_gen_stat (int shmId, int semId){
+	
+	if (reserve_sem(semId, 0) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.reserve_sem.stats shm sem.failed!", getpid());
+		return -1;
+	}
+	StatisticsAdtPtr statisticsPtr = shmat(shmId, NULL, SHM_RND);
+	if (statisticsPtr == (void*)-1){
+		slog(DIRETTORE, "direttore.pid.%d.shmat.statistics shm.failed!", getpid());
+		return -1;
+	}
+	statisticsPtr->activeOperatorsDaily += 1;
+	statisticsPtr->activeOperatorsSimulation += 1;
+	if (release_sem(semId, 0) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.release_sem.stats shm sem.failed!", getpid());
+		return -1;
+	}
+	if (shmdt(statisticsPtr) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.shmdt.statistics shm.failed!", getpid());
+		return -1;
+	}
+
+	return 0;
+}
+ int add_pause_to_gen_stat (int shmId, int semId){
+	
+	if (reserve_sem(semId, 0) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.reserve_sem.stats shm sem.failed!", getpid());
+		return -1;
+	}
+	StatisticsAdtPtr statisticsPtr = shmat(shmId, NULL, SHM_RND);
+	if (statisticsPtr == (void*)-1){
+		slog(DIRETTORE, "direttore.pid.%d.shmat.statistics shm.failed!", getpid());
+		return -1;
+	}
+	statisticsPtr->totalBreaksSimulation += 1;
+	if (release_sem(semId, 0) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.release_sem.stats shm sem.failed!", getpid());
+		return -1;
+	}
+	if (shmdt(statisticsPtr) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.shmdt.statistics shm.failed!", getpid());
+		return -1;
+	}
+
+	return 0;
 }

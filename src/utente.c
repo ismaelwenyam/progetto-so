@@ -115,15 +115,20 @@ int main (int argc, char **argv){
 		
 		// scelta della lista di servizi di cui l'utente necessita
 		requests = rand() % nRequests + 1;
+		int notAvailableServicesCount = 0;
+		slog(UTENTE, "utente.pid.%d.services number requested: %d", getpid(), requests);
 		for (int i = 0; i < requests; i++){
 			int serviceChoice = rand() % NUMBER_OF_SERVICES;
+			printf("test user\n");
 			if (servicesPtr[serviceChoice].available){
 				strcpy(servicesList[i], servicesPtr[serviceChoice].name);
 			}else{
 				slog(UTENTE, "utente.pid.%d.service %s not available today", getpid(), servicesPtr[serviceChoice].name);
-				requests -= 1;	
+				notAvailableServicesCount += 1;	
 			}
 		}
+		printf("not available services count : %d\n", notAvailableServicesCount);
+		requests -= notAvailableServicesCount;
 		if (release_sem(servicesShmSemId, 0) == -1){
 			slog(UTENTE, "utente.pid.%d.release_sem.services shm sem.failed!", getpid());
 			err_exit(strerror(errno));

@@ -199,6 +199,11 @@ int main (int argc, char **argv){
 		err_exit(strerror(errno));
 	}
 	slog(DIRETTORE, "direttore.pid.%d.creating statistics shared memory.ok!", getpid());	
+	if (init_statistics(statisticsShmId, statsShmSemId) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.init_statistics.failed", getpid());
+		err_exit(strerror(errno));
+	}
+	slog(DIRETTORE, "direttore.pid.%d.init_statistics.ok", getpid());
 
 	//creazione coda di messaggi direttore
 
@@ -279,8 +284,10 @@ int main (int argc, char **argv){
 	int users = configuration.nofUsers;
 	SportelloAdtPtr sportelliPtr;
 	ServizioAdtPtr servicesPtr;
+	StatisticsAdt statisticsPtr;
 	while (days < configuration.simDuration){
 		slog(DIRETTORE, "direttore.pid.%d.day: %d", getpid(), days+1);
+		
 		if (reserve_sem(servicesShmSemId, 0) == -1){
 			slog(DIRETTORE, "direttore.pid.%d.reserve_sem.services shm sem.failed!", getpid());
 			err_exit(strerror(errno));
@@ -407,7 +414,7 @@ int main (int argc, char **argv){
 		}
 
 		slog(DIRETTORE, "direttore.pid.%d.sleeping 10s...", getpid());
-		sleep(1);
+		sleep(10);
 		slog(DIRETTORE, "direttore.pid.%d.wake up", getpid());
 		//pause();
 
@@ -465,6 +472,8 @@ int main (int argc, char **argv){
 			err_exit(strerror(errno));
 		}
 		slog(DIRETTORE, "direttore.pid.%d.daily stats", getpid());	
+		print_stats(statisticsShmId, statsShmSemId, days + 1);
+		reset_statistics(statisticsShmId, statsShmSemId);
 		
 		if (release_sem(servicesShmSemId, 0) == -1){
 			slog(DIRETTORE, "direttore.pid.%d.release_sem.services shm sem.failed!", getpid());
@@ -631,4 +640,103 @@ int writeServicesInShm(int shmId, int semId){
 	return 0;
 }
 
+
+int init_statistics (int shmId, int semId){
+	slog(DIRETTORE, "direttore.pid.%d.start init_statistics", getpid());
+	//reserve semaforo per accesso ad shm statistiche
+	slog(DIRETTORE, "direttore.pid.%d.reserving stats shm sem", getpid());
+	if (reserve_sem(semId, 0) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.reserve_sem.stats shm sem.failed!", getpid());
+		return -1;
+	}
+	slog(DIRETTORE, "direttore.pid.%d.reserved stats shm sem", getpid());
+	//accesso a statistiche 
+	StatisticsAdtPtr statisticsPtr = shmat(shmId, NULL, SHM_RND);
+	if (statisticsPtr == (void*)-1){
+		slog(DIRETTORE, "direttore.pid.%d.shmat.statistics shm.failed!", getpid());
+		return -1;
+	}
+	//inizializzazione delle statistichie
+	statisticsPtr->activeOperatorsDaily = 0;
+	statisticsPtr->activeOperatorsSimulation = 0;
+	statisticsPtr->averageBreaksDaily = 0.0;
+	statisticsPtr->totalBreaksSimulation = 0;
+	statisticsPtr->operatorToCounterRatio = 0;
+	//TODO inizializzare le statistiche per servizio
+	//release semaforo accesso statistiche
+	if (release_sem(semId, 0) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.release_sem.stats shm sem.failed!", getpid());
+		return -1;
+	}
+	//detach da statistiche
+	if (shmdt(statisticsPtr) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.shmdt.statistics shm.failed!", getpid());
+		return -1;
+	}
+	slog(DIRETTORE, "direttore.pid.%d.end init_statistics", getpid());
+	return 0;
+}
+
+int print_stats (int shmId, int semId, int day){
+	if (reserve_sem(semId, 0) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.reserve_sem.stats shm sem.failed!", getpid());
+		return -1;
+	}
+	StatisticsAdtPtr statisticsPtr = shmat(shmId, NULL, SHM_RND);
+	if (statisticsPtr == (void*)-1){
+		slog(DIRETTORE, "direttore.pid.%d.shmat.statistics shm.failed!", getpid());
+		return -1;
+	}
+	printf("DAILY STATISTICS - day: %d\n", day);
+	printf("%s %s %s %s %s\n", "active_operators_daily", "active_operators_simulation", "average_breaks_daily", "total_breaks_simulation", "operator_to_counter_ratio");
+	printf("%22d %27d %20.1f %23d %25.1f\n", statisticsPtr->activeOperatorsDaily, statisticsPtr->activeOperatorsSimulation, 
+					statisticsPtr->averageBreaksDaily, statisticsPtr->totalBreaksSimulation, 
+									statisticsPtr->operatorToCounterRatio);
+	//TODO stampare statistiche per servizio 
+	if (release_sem(semId, 0) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.release_sem.stats shm sem.failed!", getpid());
+		return -1;
+	}
+	//detach da statistiche
+	if (shmdt(statisticsPtr) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.shmdt.statistics shm.failed!", getpid());
+		return -1;
+	}
+	return 0;
+}
+
+
+int reset_statistics (int shmId, int semId){
+	slog(DIRETTORE, "direttore.pid.%d.start reset_statistics", getpid());
+	//reserve semaforo per accesso ad shm statistiche
+	slog(DIRETTORE, "direttore.pid.%d.reserving stats shm sem", getpid());
+	if (reserve_sem(semId, 0) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.reserve_sem.stats shm sem.failed!", getpid());
+		return -1;
+	}
+	slog(DIRETTORE, "direttore.pid.%d.reserved stats shm sem", getpid());
+	//accesso a statistiche 
+	StatisticsAdtPtr statisticsPtr = shmat(shmId, NULL, SHM_RND);
+	if (statisticsPtr == (void*)-1){
+		slog(DIRETTORE, "direttore.pid.%d.shmat.statistics shm.failed!", getpid());
+		return -1;
+	}
+	//inizializzazione delle statistichie
+	statisticsPtr->activeOperatorsDaily = 0;
+	statisticsPtr->averageBreaksDaily = 0.0;
+	statisticsPtr->operatorToCounterRatio = 0;
+	//TODO inizializzare le statistiche per servizio
+	//release semaforo accesso statistiche
+	if (release_sem(semId, 0) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.release_sem.stats shm sem.failed!", getpid());
+		return -1;
+	}
+	//detach da statistiche
+	if (shmdt(statisticsPtr) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.shmdt.statistics shm.failed!", getpid());
+		return -1;
+	}
+	slog(DIRETTORE, "direttore.pid.%d.end reset_statistics", getpid());
+	return 0;
+}
 
