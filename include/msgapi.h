@@ -30,6 +30,7 @@ struct msgBuff {
 	Payload payload;
 };
 
+int rm_msgq (int msgqId);
 
 
 #endif

@@ -16,6 +16,7 @@
 #include "shmapi.h"
 #include "simulation_configuration.h"
 #include "simulation_stats.h"
+#include "utils_api.h"
 
 #define P_PAUSE_MIN	0
 #define P_PAUSE_MAX	10
@@ -345,7 +346,9 @@ int main (int argc, char **argv){
 
 		days++;
 	}	
-	
+	slog(OPERATORE, "operatore.pid.%d.delete ipc resources", getpid());
+	delete_ipc_resources(utenteOperatoreSemId, "sem"); 	
+	slog(OPERATORE, "operatore.pid.%d.deleted ipc resources", getpid());
 	
 }
 

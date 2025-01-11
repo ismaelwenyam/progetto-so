@@ -25,4 +25,5 @@ int init_sem_in_use(int semId, int semNum);
 int reserve_sem(int semId, int semNum);
 int release_sem(int semId, int semNum);
 
+int rm_sem(int semId);
 #endif

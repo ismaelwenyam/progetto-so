@@ -65,7 +65,7 @@ int main (int argc, char **argv){
 		nRequests = NUMBER_OF_SERVICES;
 	}
 	slog(UTENTE, "utente.pid.%d.nRequests: %d", getpid(), nRequests);
-	char **servicesList = malloc(sizeof(char) * 4 * nRequests);
+	char **servicesList = malloc((sizeof(char) * 4) * nRequests);
 	if (servicesList == NULL){
 		slog(UTENTE, "utente.pid.%d.malloc.failed", getpid());
 		err_exit(strerror(errno));
@@ -117,11 +117,12 @@ int main (int argc, char **argv){
 		requests = rand() % nRequests + 1;
 		int notAvailableServicesCount = 0;
 		slog(UTENTE, "utente.pid.%d.services number requested: %d", getpid(), requests);
-		for (int i = 0; i < requests; i++){
+		for (int i = 0, j = 0; i < requests; i++){
 			int serviceChoice = rand() % NUMBER_OF_SERVICES;
-			printf("test user\n");
+			printf("test i: %d - j: %d user - serviceChoice: %d - service: %s\n", i, j, serviceChoice, servicesPtr[serviceChoice].name);
 			if (servicesPtr[serviceChoice].available){
-				strcpy(servicesList[i], servicesPtr[serviceChoice].name);
+				printf("added: %s\n", strcpy(servicesList[j], servicesPtr[serviceChoice].name));
+				j++;
 			}else{
 				slog(UTENTE, "utente.pid.%d.service %s not available today", getpid(), servicesPtr[serviceChoice].name);
 				notAvailableServicesCount += 1;	
@@ -141,7 +142,7 @@ int main (int argc, char **argv){
 		
 		slog(UTENTE, "utente.pid.%d.desired services.requests: %d", getpid(), requests);
 		for (int i = 0; i < requests; i++){
-			slog(UTENTE, "%s", servicesList[i]);
+			slog(UTENTE, "index: %d - %s", i, servicesList[i]);
 		}
 		//TODO stabilire orario in cui recarsi all'ufficio postale
 	
@@ -172,11 +173,13 @@ int main (int argc, char **argv){
 				break;
 			}
 			slog(UTENTE, "utente.pid.%d.received ticket for service: %s", getpid(), servicesList[i]);
-			sportello = ticketRequest.ticket.sp;	
+			sportello.operatorPid = ticketRequest.ticket.sp.operatorPid;	
+			sportello.workerDeskSemId = ticketRequest.ticket.sp.workerDeskSemId;	
+			sportello.workerDeskSemun = ticketRequest.ticket.sp.workerDeskSemun;	
 			slog(UTENTE, "utente.pid.%d.sportello: operatorPid: %d - workerDeskSemId: %d - workerDeskSemun: %d", getpid(), sportello.operatorPid, sportello.workerDeskSemId, sportello.workerDeskSemun);
 			if (sportello.operatorPid == 0){
 				slog(UTENTE, "utente.pid.%d.service: %s available but no operator executing it", getpid(), servicesList[i]);
-				break;
+				continue;
 			}
 			// Il tempo di erogazione del servizio viene calcolato dal momento in cui l'utente si mette in fila.
 			// TODO calcolare tempo si start e inserirlo nelle statistiche (tenendo conto del parametro n_nano_secs) (tempo di attesa, erogazione)

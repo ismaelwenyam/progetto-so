@@ -7,4 +7,6 @@
 #define STATISTICS_SHARED_MEMORY 11112
 #define SPORTELLI_SHARED_MEMORY_KEY 11113
 
+int rm_shm(int shmId);
+
 #endif

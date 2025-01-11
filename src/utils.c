@@ -6,6 +6,7 @@
 #include "sportello_api.h"
 #include "shmapi.h"
 #include "semapi.h"
+#include "msgapi.h"
 
 
 
@@ -82,4 +83,32 @@ void dump_data (char *filename){
 
 
 
+}
+
+
+int delete_ipc_resources (int id, char *resourceType){
+	if (resourceType == NULL){
+		return -1;
+	}
+	if (strcmp(resourceType, "shm") == 0){
+		return rm_shm(id);	
+	} else if (strcmp(resourceType, "sem") == 0){
+		return rm_sem(id);	
+	} else {
+		return rm_msgq(id);	
+	}	
+	return 0;
+
+}
+
+int rm_msgq(int id){
+	return msgctl(id, IPC_RMID, NULL);
+}
+
+int rm_shm(int id){
+	return shmctl(id, IPC_RMID, NULL);
+}
+
+int rm_sem(int id){
+	return semctl(id, 0, IPC_RMID);
 }

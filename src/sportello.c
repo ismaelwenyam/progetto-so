@@ -13,6 +13,7 @@
 #include "semapi.h"
 #include "ticket.h"
 #include "simulation_configuration.h"
+#include "utils_api.h"
 
 
 int main (int argc, char **argv) {
@@ -113,9 +114,13 @@ int main (int argc, char **argv) {
 			err_exit(strerror(errno));
 		}
 		slog(SPORTELLO, "sportello.pid.%d.release_sem.%d.semun.0", getpid(), sportelloSemId);
+		//TODO sistemare lo sportello di pertinenza
+		if (reserve_sem(sportelloSemId, 1) == -1){
+			slog(SPORTELLO, "sportello.pid.%d.reserve_sem.sportello_sem.failed", getpid());
+			err_exit(strerror(errno));
+		}
 		
-		//TODO deve diventare reserve per poter sistemare lo sportello di pertinenza
-		if (release_sem(sportelloSemId, 1) == -1){
+		if (release_sem(sportelloSemId, 2) == -1){
 			slog(SPORTELLO, "sportello.pid.%d.release_sem.sportello_sem.failed", getpid());
 			err_exit(strerror(errno));
 		}
@@ -123,6 +128,9 @@ int main (int argc, char **argv) {
 
 		days++;
 	}
+	slog(SPORTELLO, "sportello.pid.%d.delete ipc resources", getpid());
+	delete_ipc_resources(operatoreSportelloSemId, "sem"); 	
+	slog(SPORTELLO, "sportello.pid.%d.deleted ipc resources", getpid());
 	
 	
 }

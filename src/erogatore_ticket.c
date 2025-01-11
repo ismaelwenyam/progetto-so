@@ -162,10 +162,12 @@ int main (int argc, char **argv){
 					slog(EROGATORE, "erogatore_ticket.child.pid.%d.shmdt.services shm.failed!", getpid());
 					return -1;
 				}
+				slog(EROGATORE, "erogatore_ticket.child.pid.%d.reserving_sem.sportelli shm sem...", getpid());
 				if (reserve_sem(sportelliShmSemId, 0) == -1){
 					slog(EROGATORE, "erogatore.pid.%d.reserve_sem.sportelli_shm_sem.failed", getpid());
 					err_exit(strerror(errno));
 				}
+				slog(EROGATORE, "erogatore_ticket.child.pid.%d.reserved sem.sportelli shm sem", getpid());
 				sportelliPtr = shmat(sportelliShmId, NULL, SHM_RND);
 				if (sportelliPtr == (void*) -1){
 					slog(EROGATORE, "erogatore.pid.%d.shmat.sportelli.failed", getpid());
@@ -176,7 +178,9 @@ int main (int argc, char **argv){
 				ticketRequest.ticket.sp.workerDeskSemun = 0;
 				for (int i = 0; i < configuration.nofWorkerSeats; i++){
 					if (strcmp(sportelliPtr[i].serviceName, msgBuff.payload.msg) == 0){
-						ticketRequest.ticket.sp = sportelliPtr[i];
+						ticketRequest.ticket.sp.operatorPid = sportelliPtr[i].operatorPid;
+						ticketRequest.ticket.sp.workerDeskSemId = sportelliPtr[i].workerDeskSemId;
+						ticketRequest.ticket.sp.workerDeskSemun = sportelliPtr[i].workerDeskSemun;
 						break;	
 					}
 				}
