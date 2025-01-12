@@ -31,10 +31,12 @@ struct statistics {
 };
 
 
-int init_statistics (int shmId, int semId);
+int init_statistics (int shmId, int semId, const char **services);
 int print_stats (int shmId, int semId, int day);
 int reset_statistics (int shmId, int semId);
 int add_operator_to_gen_stat (int shmId, int semId);
 int add_pause_to_gen_stat (int shmId, int semId);
+int update_service_stat (int shmId, int semId, char *service, int serviceProvided);
+int update_user_served_stat (int shmId, int semId, char *service);
 
 #endif

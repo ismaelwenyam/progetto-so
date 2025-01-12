@@ -20,6 +20,8 @@
 
 #define P_PAUSE_MIN	0
 #define P_PAUSE_MAX	10
+#define SERVICE_PROVIDED 1
+#define SERVICE_NOT_PROVIDED 0
 
 bool eod = false;
 
@@ -173,6 +175,12 @@ int main (int argc, char **argv){
 					slog(OPERATORE, "operatore.pid.%d.reserve_sem.operatore sem.semun:2.failed", getpid());
 					err_exit(strerror(errno));
 				}
+				// se nessun sportello fornisce il servizio allora il servizio non puo essere erogato
+				if (update_service_stat(statisticsShmId, statsShmSemId, msgBuff.payload.msg, SERVICE_NOT_PROVIDED) == -1){
+					slog(OPERATORE, "operatore.child.pid.%d.failed to update stats", getpid());
+				}
+				
+				slog(OPERATORE, "operatore.child.pid.%d.updating stats...", getpid());
 				slog(OPERATORE, "operatore.child.pid.%d.release_sem.sportelli_shm_sem", getpid());
 				slog(OPERATORE, "operatore.child.pid.%d.exiting...", getpid());
 				exit(0);
@@ -187,6 +195,10 @@ int main (int argc, char **argv){
 				}
 				slog(OPERATORE, "operatore.child.pid.%d.release_sem.services shm sem", getpid());
 				err_exit(strerror(errno));
+			}
+			// aggiorna servizio erogato
+			if (update_service_stat(statisticsShmId, statsShmSemId, msgBuff.payload.msg, SERVICE_PROVIDED) == -1){
+				slog(OPERATORE, "operatore.child.pid.%d.failed to update stats", getpid());
 			}
 			
 			slog(OPERATORE, "operatore.child.pid.%d.release_sem.services shm sem", getpid());
@@ -276,6 +288,9 @@ int main (int argc, char **argv){
 				slog(OPERATORE, "operatore.child.pid.%d.received.service req from user: %d service: %s", getpid(), msgBuff.payload.senderPid, msgBuff.payload.msg);
 				//TODO aggiorna le statistiche
 				slog(OPERATORE, "operatore.child.pid.%d.updating stats for services: %s", getpid(), msgBuff.payload.msg);
+				if (update_user_served_stat(statisticsShmId, statsShmSemId, msgBuff.payload.msg) == -1){
+				slog(OPERATORE, "operatore.child.pid.%d.failed to update stats", getpid());
+				}
 				if (nofPause > 0){
 					
 					//TODO notificare all'utente pause e aggiornare sportelli
@@ -354,50 +369,3 @@ int main (int argc, char **argv){
 
 
 
-int add_operator_to_gen_stat (int shmId, int semId){
-	
-	if (reserve_sem(semId, 0) == -1){
-		slog(DIRETTORE, "direttore.pid.%d.reserve_sem.stats shm sem.failed!", getpid());
-		return -1;
-	}
-	StatisticsAdtPtr statisticsPtr = shmat(shmId, NULL, SHM_RND);
-	if (statisticsPtr == (void*)-1){
-		slog(DIRETTORE, "direttore.pid.%d.shmat.statistics shm.failed!", getpid());
-		return -1;
-	}
-	statisticsPtr->activeOperatorsDaily += 1;
-	statisticsPtr->activeOperatorsSimulation += 1;
-	if (release_sem(semId, 0) == -1){
-		slog(DIRETTORE, "direttore.pid.%d.release_sem.stats shm sem.failed!", getpid());
-		return -1;
-	}
-	if (shmdt(statisticsPtr) == -1){
-		slog(DIRETTORE, "direttore.pid.%d.shmdt.statistics shm.failed!", getpid());
-		return -1;
-	}
-
-	return 0;
-}
- int add_pause_to_gen_stat (int shmId, int semId){
-	
-	if (reserve_sem(semId, 0) == -1){
-		slog(DIRETTORE, "direttore.pid.%d.reserve_sem.stats shm sem.failed!", getpid());
-		return -1;
-	}
-	StatisticsAdtPtr statisticsPtr = shmat(shmId, NULL, SHM_RND);
-	if (statisticsPtr == (void*)-1){
-		slog(DIRETTORE, "direttore.pid.%d.shmat.statistics shm.failed!", getpid());
-		return -1;
-	}
-	statisticsPtr->totalBreaksSimulation += 1;
-	if (release_sem(semId, 0) == -1){
-		slog(DIRETTORE, "direttore.pid.%d.release_sem.stats shm sem.failed!", getpid());
-		return -1;
-	}
-	if (shmdt(statisticsPtr) == -1){
-		slog(DIRETTORE, "direttore.pid.%d.shmdt.statistics shm.failed!", getpid());
-		return -1;
-	}
-
-	return 0;
-}

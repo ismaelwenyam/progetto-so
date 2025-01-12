@@ -15,7 +15,7 @@ src/%.o: src/%.c
 	$(CC) $(INCLUDES) $(CFLAGS) -c $< -o $@
 
 # Link degli eseguibili
-direttore: src/direttore.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o src/utils.o
+direttore: src/direttore.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o src/utils.o src/simulation_stats_api.o
 	$(CC) -o $@ $^
 
 erogatore_ticket: src/erogatore_ticket.o src/semapi.o src/simerr.o src/logapi.o src/simulation_configuration.o src/utils.o
@@ -27,7 +27,7 @@ utente: src/utente.o src/simulation_configuration.o src/semapi.o src/simerr.o sr
 sportello: src/sportello.o src/simerr.o src/logapi.o src/semapi.o src/simulation_configuration.o src/utils.o
 	$(CC) -o $@ $^
 
-operatore: src/operatore.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o src/utils.o
+operatore: src/operatore.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o src/utils.o src/simulation_stats_api.o
 	$(CC) -o $@ $^
 
 clean:
