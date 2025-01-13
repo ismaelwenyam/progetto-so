@@ -27,16 +27,22 @@ struct statistics {
 	int activeOperatorsSimulation;			/* il numero di operatori attivi durante la simulazione */
 	float averageBreaksDaily;			/* il numero medio di pause effettuate nella giornata */
 	int totalBreaksSimulation;			/* totale di pause effettuate durante la simulazione */
-	float operatorToCounterRatio;			/* il rapporto fra operatori disponibili e sportelli esistenti, per ogni sportello per ogni giornata */
 };
 
+typedef struct sportelloStat SportelloStatAdt, *SportelloStatAdtPtr;
+struct sportelloStat {
+	char service[SERVICE_LEN];
+	int pid;
+	float ratio;
+};
 
 int init_statistics (int shmId, int semId, const char **services);
-int print_stats (int shmId, int semId, int day);
+int print_stats (int shmId, int semId, int ssshmId, int sssemId, int day, int nofWorkerSeats);
 int reset_statistics (int shmId, int semId);
 int add_operator_to_gen_stat (int shmId, int semId);
-int add_pause_to_gen_stat (int shmId, int semId);
+int add_pause_stat (int shmId, int semId);
 int update_service_stat (int shmId, int semId, char *service, int serviceProvided);
-int update_user_served_stat (int shmId, int semId, char *service);
+int update_user_served_stat (int shmId, int semId, char *service, int nofUsers);
+int update_operator_seat_ratio (int shmId, int semId, char *service, int nofWorkerSeats);
 
 #endif

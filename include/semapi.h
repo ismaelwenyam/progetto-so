@@ -11,6 +11,7 @@
 #define STATS_SHM_SEM_KEY 11115
 #define SERVICES_SHM_SEM_KEY 11116
 #define SPORTELLI_SHM_SEM_KEY 11117
+#define SPORTELLI_STATS_SHM_SEM_KEY 11118
 
 union semun {
 	int              val;    /* Value for SETVAL */

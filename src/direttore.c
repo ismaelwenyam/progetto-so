@@ -70,6 +70,7 @@ int main (int argc, char **argv){
 	int statsShmSemId, servicesShmSemId;
 	int servicesShmId, statisticsShmId;
 	int sportelliShmSemId, sportelliShmId;
+	int sportelliStatShmSemId, sportelliStatShmId;
 	int dirMsgQueueId, serviceMsgqId;
 	slog(DIRETTORE, "direttore.pid.%d.setup.start", getpid());
 	if ((resourceCreationSemId = semget(RESOURCE_CREATION_SYNC_SEM_KEY, 1, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
@@ -205,6 +206,24 @@ int main (int argc, char **argv){
 		err_exit(strerror(errno));
 	}
 	slog(DIRETTORE, "direttore.pid.%d.init_statistics.ok", getpid());
+	
+	//creazione memoria condivisa per statistiche sportelli
+	slog(DIRETTORE, "direttore.pid.%d.creating sem for accessing sportelli stats shm", getpid());
+	if ((sportelliStatShmSemId = semget(SPORTELLI_STATS_SHM_SEM_KEY, 1, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.semget.ipc_creat.sem access sportelli stats shm.failed!", getpid());
+		err_exit(strerror(errno));
+	}
+	slog(DIRETTORE, "direttore.pid.%d.semget.ipc_creat.sem access sportelli stats shm.ok!", getpid());
+	if (init_sem_available(sportelliStatShmSemId, 0) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.init_sem_available.sportelli stats shm sem.failed!", getpid());
+		err_exit(strerror(errno));
+	}
+	slog(DIRETTORE, "direttore.pid.%d.creating shared memory for sportelli statistics...", getpid());	
+	if ((sportelliStatShmId = shmget(SPORTELLI_STATS_SHARED_MEMORY_KEY, sizeof(SportelloStatAdt) * configuration.nofWorkerSeats, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR)) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.shmget.sportelli statistics shared memory failed", getpid());
+		err_exit(strerror(errno));
+	}
+	
 
 	//creazione coda di messaggi direttore
 
@@ -285,7 +304,8 @@ int main (int argc, char **argv){
 	int users = configuration.nofUsers;
 	SportelloAdtPtr sportelliPtr;
 	ServizioAdtPtr servicesPtr;
-	StatisticsAdt statisticsPtr;
+	//StatisticsAdt statisticsPtr;
+	SportelloStatAdtPtr sportelliStatsPtr;
 	while (days < configuration.simDuration){
 		slog(DIRETTORE, "direttore.pid.%d.day: %d", getpid(), days+1);
 		
@@ -310,12 +330,23 @@ int main (int argc, char **argv){
 		
 		//assegnazione funzioni agli sportelli
 		if (reserve_sem(sportelliShmSemId, 0) == -1){
-			slog(SPORTELLO, "direttore.pid.%d.reserve_sem.sportelli shm sem.failed!", getpid());
+			slog(DIRETTORE, "direttore.pid.%d.reserve_sem.sportelli shm sem.failed!", getpid());
 			err_exit(strerror(errno));
 		}
 		sportelliPtr = shmat(sportelliShmId, NULL, SHM_RND);
 		if (sportelliPtr == (void*) -1){
-			slog(SPORTELLO, "direttore.pid.%d.shmat.failed", getpid());
+			slog(DIRETTORE, "direttore.pid.%d.shmat sportelli.failed", getpid());
+			err_exit(strerror(errno));
+		}
+
+		if (reserve_sem(sportelliStatShmSemId, 0) == -1){
+			slog(DIRETTORE, "direttore.pid.%d.reserve_sem.sportelli stats shm sem.failed!", getpid());
+			err_exit(strerror(errno));
+		}	
+
+		sportelliStatsPtr = shmat(sportelliStatShmId, NULL, SHM_RND);
+		if (sportelliStatsPtr == (void*) -1){
+			slog(DIRETTORE, "direttore.pid.%d.shmat sportelli stat.failed", getpid());
 			err_exit(strerror(errno));
 		}
 		
@@ -345,6 +376,10 @@ int main (int argc, char **argv){
 					sportelliPtr[i].deskSemun = 0;
 					sportelliPtr[i].workerDeskSemId = 0;
 					sportelliPtr[i].workerDeskSemun = 0;
+					// sportello stats init
+					strcpy(sportelliStatsPtr[i].service, servicesPtr[servizio].name);
+					sportelliStatsPtr[i].pid = msgBuff.mtype;
+					sportelliStatsPtr[i].ratio = 0.0;
 					break;
 				}	
 				
@@ -368,6 +403,16 @@ int main (int argc, char **argv){
 		}
 		if (shmdt(sportelliPtr) == -1){
 			slog(SPORTELLO, "direttore.pid.%d.shmdt.sportelli shm.failed!", getpid());
+			return -1;
+		}
+
+		
+		if (release_sem(sportelliStatShmSemId, 0) == -1){
+			slog(SPORTELLO, "direttore.pid.%d.release_sem.sportelli stat shm sem.failed!", getpid());
+			err_exit(strerror(errno));
+		}
+		if (shmdt(sportelliStatsPtr) == -1){
+			slog(SPORTELLO, "direttore.pid.%d.shmdt.sportelli stat shm.failed!", getpid());
 			return -1;
 		}
 		
@@ -481,7 +526,7 @@ int main (int argc, char **argv){
 			err_exit(strerror(errno));
 		}
 		slog(DIRETTORE, "direttore.pid.%d.daily stats", getpid());	
-		print_stats(statisticsShmId, statsShmSemId, days + 1);
+		print_stats(statisticsShmId, statsShmSemId, sportelliStatShmId, sportelliStatShmSemId, days + 1, configuration.nofWorkerSeats);
 		reset_statistics(statisticsShmId, statsShmSemId);
 		
 		if (release_sem(servicesShmSemId, 0) == -1){
@@ -501,9 +546,11 @@ int main (int argc, char **argv){
 	delete_ipc_resources(servicesShmSemId, "sem");
 	delete_ipc_resources(statsShmSemId, "sem");
 	delete_ipc_resources(sportelliShmSemId, "sem");
+	delete_ipc_resources(sportelliStatShmSemId, "sem");
 	delete_ipc_resources(servicesShmId, "shm");
 	delete_ipc_resources(statisticsShmId, "shm");
 	delete_ipc_resources(sportelliShmId, "shm");
+	delete_ipc_resources(sportelliStatShmId, "shm");
 	delete_ipc_resources(dirMsgQueueId, "msg");
 	delete_ipc_resources(serviceMsgqId, "msg");
 	

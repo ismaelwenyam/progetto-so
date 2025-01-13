@@ -43,6 +43,7 @@ int main (int argc, char **argv){
 	int servicesShmId, statisticsShmId;
 	int utenteOperatoreSemId;
 	int sportelliShmSemId, sportelliShmId;
+	int sportelliStatShmSemId, sportelliStatShmId;
 	if ((serviceMsgqId = msgget(SERVICE_MESSAGE_QUEUE_KEY, 0)) == -1){
 		slog(OPERATORE, "operatore.pid.%d.msgget.ipc_creat.services message queue.failed!", getpid());
 		err_exit(strerror(errno));
@@ -82,6 +83,17 @@ int main (int argc, char **argv){
 		err_exit(strerror(errno));
 	}
 	
+	//
+	if ((sportelliStatShmSemId = semget(SPORTELLI_STATS_SHM_SEM_KEY, 0, 0)) == -1){
+		slog(EROGATORE, "erogatore_ticket.pid.%d.semget.services_shm_sem.failed!", getpid());
+		err_exit(strerror(errno));
+	}	
+	
+	if ((sportelliStatShmId = shmget(SPORTELLI_STATS_SHARED_MEMORY_KEY, 0, 0)) == -1){
+		slog(EROGATORE, "erogatore_ticket.pid.%d.shmget.service_shared_memory.failed!", getpid());
+		err_exit(strerror(errno));
+	}
+
 	// richiesta funzione a direttore
 	char role [MSG_LEN];	
 	MsgBuff msgBuff;
@@ -186,8 +198,6 @@ int main (int argc, char **argv){
 				exit(0);
 			}
 			slog(OPERATORE, "operatore.child.pid.%d.sportello: %d available: %s", getpid(), deskSemId, sportelloTaken ? "true" : "false");
-				
-			
 			if (release_sem(sportelliShmSemId, 0) == -1){
 				if (release_sem(operatoreSemId, 2) == -1){
 					slog(OPERATORE, "operatore.pid.%d.reserve_sem.operatore sem.semun:2.failed", getpid());
@@ -196,7 +206,13 @@ int main (int argc, char **argv){
 				slog(OPERATORE, "operatore.child.pid.%d.release_sem.services shm sem", getpid());
 				err_exit(strerror(errno));
 			}
+			// TODO aggiorna ratio operatore sportello
+			if (update_operator_seat_ratio(sportelliStatShmId, sportelliStatShmSemId, msgBuff.payload.msg, configuration.nofWorkerSeats) == -1){
+				slog(OPERATORE, "operatore.child.pid.%d.failed to update sportelli stats", getpid());
+			}
+			
 			// aggiorna servizio erogato
+			//TODO criticita se il numero di utenti dovesse crescere
 			if (update_service_stat(statisticsShmId, statsShmSemId, msgBuff.payload.msg, SERVICE_PROVIDED) == -1){
 				slog(OPERATORE, "operatore.child.pid.%d.failed to update stats", getpid());
 			}
@@ -288,8 +304,10 @@ int main (int argc, char **argv){
 				slog(OPERATORE, "operatore.child.pid.%d.received.service req from user: %d service: %s", getpid(), msgBuff.payload.senderPid, msgBuff.payload.msg);
 				//TODO aggiorna le statistiche
 				slog(OPERATORE, "operatore.child.pid.%d.updating stats for services: %s", getpid(), msgBuff.payload.msg);
-				if (update_user_served_stat(statisticsShmId, statsShmSemId, msgBuff.payload.msg) == -1){
-				slog(OPERATORE, "operatore.child.pid.%d.failed to update stats", getpid());
+				
+				//TODO criticita se il numero di utenti dovesse crescere? chiedere al direttore
+				if (update_user_served_stat(statisticsShmId, statsShmSemId, msgBuff.payload.msg, configuration.nofUsers) == -1){
+					slog(OPERATORE, "operatore.child.pid.%d.failed to update stats", getpid());
 				}
 				if (nofPause > 0){
 					
@@ -326,7 +344,7 @@ int main (int argc, char **argv){
 					}
 					nofPause--;
 					slog(OPERATORE, "operatore.child.pid.%d.taking pause.remains %d pauses", getpid(), nofPause);
-					if (add_pause_to_gen_stat(statisticsShmId, statsShmSemId) == -1){
+					if (add_pause_stat(statisticsShmId, statsShmSemId) == -1){
 						slog(OPERATORE, "operatore.child.pid.%d.failed to update pause stats", getpid());
 					}
 					break;

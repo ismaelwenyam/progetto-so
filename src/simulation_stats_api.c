@@ -24,7 +24,6 @@ int init_statistics (int shmId, int semId, const char **services){
 	statisticsPtr->activeOperatorsSimulation = 0;
 	statisticsPtr->averageBreaksDaily = 0.0;
 	statisticsPtr->totalBreaksSimulation = 0;
-	statisticsPtr->operatorToCounterRatio = 0;
 	//TODO inizializzare le statistiche per servizio
 	for (int i = 0; i < SERVICES; i++){
 		strcpy(statisticsPtr->services[i].serviceType, services[i]);	
@@ -52,7 +51,7 @@ int init_statistics (int shmId, int semId, const char **services){
 	return 0;
 }
 
-int print_stats (int shmId, int semId, int day){
+int print_stats (int shmId, int semId, int ssshmId, int sssemId, int day, int nofWorkerSeats){
 	if (reserve_sem(semId, 0) == -1){
 		printf("failed to reserve stats shm sem\n");
 		return -1;
@@ -62,6 +61,17 @@ int print_stats (int shmId, int semId, int day){
 		printf("failed to attach stats shm\n");
 		return -1;
 	}
+
+	if (reserve_sem(sssemId, 0) == -1){
+		printf("failed to reserve sportelli stats shm sem\n");
+		return -1;
+	}
+	SportelloStatAdtPtr sportelliStatsPtr = shmat(ssshmId, NULL, SHM_RND);
+	if (sportelliStatsPtr == (void*)-1){
+		printf("failed to attach sportelli stats shm\n");
+		return -1;
+	}
+
 	printf("**********************************************************************************\n");
 	printf("\t\t\t\t\t\tDAILY STATS - day: %d\n", day);
 	printf("**********************************************************************************\n");
@@ -77,13 +87,25 @@ int print_stats (int shmId, int semId, int day){
 						statisticsPtr->services[i].averageWaitingTimeDaily, 
 						statisticsPtr->services[i].averageServiceDurationDaily);
 	}
+	puts("");
 	printf("**********************************************************************************\n");
 	printf("\t\t\t\t\t\tEXTRA DAILY STATS - day: %d\n", day);
 	printf("**********************************************************************************\n");
-	printf("%s %s %s\n", "active_operators_daily", "average_breaks_daily", "operator_to_counter_ratio");
-	printf("%22d %20.1f %25.1f\n", statisticsPtr->activeOperatorsDaily,
-					statisticsPtr->averageBreaksDaily, statisticsPtr->operatorToCounterRatio);
+	printf("%s %s\n", "active_operators_daily", "average_breaks_daily");
+	printf("%22d %20.2f\n", statisticsPtr->activeOperatorsDaily,
+					statisticsPtr->averageBreaksDaily);
 	
+	puts("");
+	printf("**********************************************************************************\n");
+	printf("\t\t\t\t\t\tOPERATOR TO SPORTELLO RATIO - day: %d\n", day);
+	printf("**********************************************************************************\n");
+	printf("%s %s %s %s\n", "Sportello", "Pid", "Service", "Ratio");
+	for (int i = 0; i < nofWorkerSeats; i++){
+		printf("%9d %3d %s %5.2f\n", i+1, sportelliStatsPtr[i].pid, sportelliStatsPtr[i].service, sportelliStatsPtr[i].ratio);
+	}
+	
+
+	puts("");
 	printf("**********************************************************************************\n");
 	printf("\t\t\t\t\t\tTOTAL STATS - day: %d\n", day);
 	printf("**********************************************************************************\n");
@@ -93,19 +115,19 @@ int print_stats (int shmId, int semId, int day){
 									"tot_services_not_provided", 
 									"average_waiting_time_simulation", 
 									"average_service_duration_simulation");	
-		printf("%16d %21d %25d %31.2f %36.2f\n", statisticsPtr->services[i].totalUsersServed, 
+		printf("%16d %21d %25d %31.2f %35.2f\n", statisticsPtr->services[i].totalUsersServed, 
 						statisticsPtr->services[i].totalServicesProvided, 
 						statisticsPtr->services[i].totalServicesNotProvided,
 						statisticsPtr->services[i].averageWaitingTimeSimulation, 
 						statisticsPtr->services[i].averageServiceDurationSimulation);
 	}
+	puts("");
 	printf("**********************************************************************************\n");
 	printf("\t\t\t\t\t\tEXTRA TOTAL STATS - day: %d\n", day);
 	printf("**********************************************************************************\n");
 	printf("%s %s\n", "active_operators_simulation", "total_breaks_simulation");
 	printf("%27d %23d\n", statisticsPtr->activeOperatorsSimulation,
 					statisticsPtr->totalBreaksSimulation);
-	//TODO stampare statistiche per servizio 
 	if (release_sem(semId, 0) == -1){
 		printf("failed to release stats shm sem\n");
 		return -1;
@@ -113,6 +135,16 @@ int print_stats (int shmId, int semId, int day){
 	//detach da statistiche
 	if (shmdt(statisticsPtr) == -1){
 		printf("failed to detach stats shm\n");
+		return -1;
+	}
+
+	if (release_sem(sssemId, 0) == -1){
+		printf("failed to release sportelli stats shm sem\n");
+		return -1;
+	}
+	//detach da statistiche
+	if (shmdt(sportelliStatsPtr) == -1){
+		printf("failed to detach sportelli stats shm\n");
 		return -1;
 	}
 	return 0;
@@ -134,7 +166,6 @@ int reset_statistics (int shmId, int semId){
 	//inizializzazione delle statistichie
 	statisticsPtr->activeOperatorsDaily = 0;
 	statisticsPtr->averageBreaksDaily = 0.0;
-	statisticsPtr->operatorToCounterRatio = 0;
 	//TODO inizializzare le statistiche per servizio
 	//release semaforo accesso statistiche
 	if (release_sem(semId, 0) == -1){
@@ -175,7 +206,7 @@ int add_operator_to_gen_stat (int shmId, int semId){
 	printf("end add_operator_to_gen_stat\n");	
 	return 0;
 }
- int add_pause_to_gen_stat (int shmId, int semId){
+ int add_pause_stat (int shmId, int semId){
 	printf("start add_pause_to_gen_stat\n");	
 	if (reserve_sem(semId, 0) == -1){
 		printf("failed to reserve stats shm sem\n");
@@ -187,6 +218,8 @@ int add_operator_to_gen_stat (int shmId, int semId){
 		return -1;
 	}
 	statisticsPtr->totalBreaksSimulation += 1;
+	//numero medio di pause nella giornata
+	statisticsPtr->averageBreaksDaily += 1 / (float)statisticsPtr->activeOperatorsDaily;
 	if (release_sem(semId, 0) == -1){
 		printf("failed to release stats shm sem\n");
 		return -1;
@@ -239,8 +272,8 @@ int update_service_stat (int shmId, int semId, char *service, int serviceProvide
 	return 0;
 }
 
-
-int update_user_served_stat (int shmId, int semId, char *service){
+//TODO criticita se il numero di utenti dovesse crescere
+int update_user_served_stat (int shmId, int semId, char *service, int nofUsers){
 	printf("start update_user_served_stat\n");
 	if (reserve_sem(semId, 0) == -1){
 		printf("failed to reserve stats shm sem\n");
@@ -256,6 +289,7 @@ int update_user_served_stat (int shmId, int semId, char *service){
 	for (int i = 0; i < SERVICES; i++){
 		if (strcmp(statisticsPtr->services[i].serviceType, service) == 0){
 			statisticsPtr->services[i].totalUsersServed += 1;	
+			statisticsPtr->services[i].averageDailyUsersServed += 1/(float)nofUsers;
 			break;	
 		}	
 	}
@@ -272,5 +306,44 @@ int update_user_served_stat (int shmId, int semId, char *service){
 		return -1;
 	}
 	printf("end update_user_served_stat\n");
+	return 0;
+}
+
+int update_operator_seat_ratio (int shmId, int semId, char *service, int nofWorkerSeats){
+	printf("start update_operator_seat_ratio\n");
+
+	if (reserve_sem(semId, 0) == -1){
+		printf("failed to reserve sportelli stats shm sem\n");
+		return -1;
+	}
+	SportelloStatAdtPtr sportelliStatsPtr = shmat(shmId, NULL, SHM_RND);
+	if (sportelliStatsPtr == (void*)-1){
+		printf("failed to attach sportelli stats shm\n");
+		return -1;
+	}
+	//
+	int spCount = 0;
+	for (int i = 0; i < nofWorkerSeats; i++){
+		if (strcmp(sportelliStatsPtr[i].service, service) == 0){
+			spCount += 1;
+		}
+	}	
+	
+	for (int i = 0; i < nofWorkerSeats; i++){
+		if (strcmp(sportelliStatsPtr[i].service, service) == 0){
+			sportelliStatsPtr[i].ratio += 1/(float)spCount;
+		}
+	}	
+
+	if (release_sem(semId, 0) == -1){
+		printf("failed to release sportelli stats shm sem\n");
+		return -1;
+	}
+	//detach da statistiche
+	if (shmdt(sportelliStatsPtr) == -1){
+		printf("failed to detach sportelli stats shm\n");
+		return -1;
+	}
+	printf("end update_operator_seat_ratio\n");
 	return 0;
 }

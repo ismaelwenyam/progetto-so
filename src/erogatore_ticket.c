@@ -147,13 +147,23 @@ int main (int argc, char **argv){
 				slog(EROGATORE, "erogatore_ticket.child.pid.%d.accessed services shared memory", getpid());	
 				for (int i = 0; i < NUMBER_OF_SERVICES; i++){
 					if (strcmp(servicesPtr[i].name, msgBuff.payload.msg) == 0){
-						ticketRequest.ticket.se = servicesPtr[i];
+						strcpy(ticketRequest.ticket.se.name, servicesPtr[i].name);
+						ticketRequest.ticket.se.temp = servicesPtr[i].temp;
+						ticketRequest.ticket.se.available = servicesPtr[i].available;
 						//TODO fix eod, perche ogni tanto riceve erroneamente eod
 						ticketRequest.ticket.eod = false;
 						break;
 					}
 				}
-				//TODO impostare il tempario a +- 50% del valore iniziale
+				//imposta il tempario a +- 50% del valore iniziale
+				int extraTemp = rand() % 2;
+				if (extraTemp > 0){
+					slog(EROGATORE, "erogatore_ticket.child.pid.%d.extraTemp: %d, increasing 50%", getpid(), extraTemp);
+					ticketRequest.ticket.se.temp += ticketRequest.ticket.se.temp / 2;
+				}else{
+					slog(EROGATORE, "erogatore_ticket.child.pid.%d.extraTemp: %d, decreasing 50%", getpid(), extraTemp);
+					ticketRequest.ticket.se.temp -= ticketRequest.ticket.se.temp / 2;
+				}
 				if (release_sem(servicesShmSemId, 0) == -1){
 					slog(EROGATORE, "erogatore_ticket.child.pid.%d.release_sem.services shm sem.failed!", getpid());
 					err_exit(strerror(errno));
