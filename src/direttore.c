@@ -55,7 +55,7 @@ const char *services[] = {IRP, ILR, PVB, PBP, APF, AOB};
 
 		//TODO se il direttore dove fallire gestire tutti gli altri processi
 int main (int argc, char **argv){	
-	srand(time(NULL));
+	srand(time(NULL) + getpid());
 	print_logs();
 	slog(DIRETTORE, "direttore.pid.%d.started", getpid());
 	ConfigurationAdt configuration = get_config();
@@ -64,7 +64,12 @@ int main (int argc, char **argv){
 		err_exit("simDuration must be greater than 0");
 	}
 	print_config(configuration);
-	
+
+	//TODO replace with params from config
+	if (create_stats_file("./daily_stats.csv", "./extra_daily_stats.csv", "./operator_ratio.csv", "total_stats.csv", "extra_total_stats.csv") == -1){
+		slog(DIRETTORE, "direttore.pid.%d.failed to create csv stats file", getpid());	
+		slog(DIRETTORE, "direttore.pid.%d.simulation proceeding without stats files", getpid());
+	}
 	int resourceCreationSemId;
 	int erogatoreSemId, utenteSemId, operatoreSemId, sportelloSemId;
 	int statsShmSemId, servicesShmSemId;
@@ -460,7 +465,7 @@ int main (int argc, char **argv){
 		}
 
 		slog(DIRETTORE, "direttore.pid.%d.sleeping 10s...", getpid());
-		sleep(1);
+		sleep(10);
 		slog(DIRETTORE, "direttore.pid.%d.wake up", getpid());
 		//pause();
 
@@ -527,6 +532,8 @@ int main (int argc, char **argv){
 		}
 		slog(DIRETTORE, "direttore.pid.%d.daily stats", getpid());	
 		print_stats(statisticsShmId, statsShmSemId, sportelliStatShmId, sportelliStatShmSemId, days + 1, configuration.nofWorkerSeats);
+		dump_daily_stats ("./daily_stats.csv", "./extra_daily_stats.csv", statisticsShmId, statsShmSemId, days +1);
+		dump_operator_daily_ratio("./operator_ratio.csv", sportelliStatShmId, sportelliStatShmSemId, days + 1, configuration.nofWorkerSeats);
 		reset_statistics(statisticsShmId, statsShmSemId);
 		
 		if (release_sem(servicesShmSemId, 0) == -1){

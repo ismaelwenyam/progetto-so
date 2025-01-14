@@ -57,7 +57,7 @@ int main (int argc, char **argv){
 		err_exit(strerror(errno)); 
 	}
 	if ((statisticsShmId = shmget(STATISTICS_SHARED_MEMORY, 0, 0)) == -1){
-		slog(DIRETTORE, "operatore.pid.%d.shmget.statistics shared memory failed", getpid());
+		slog(OPERATORE, "operatore.pid.%d.shmget.statistics shared memory failed", getpid());
 		err_exit(strerror(errno));
 	}
 	if ((servicesShmSemId = semget(STATS_SHM_SEM_KEY, 0, 0)) == -1){
@@ -74,23 +74,23 @@ int main (int argc, char **argv){
 	}
 	//
 	if ((sportelliShmSemId = semget(SPORTELLI_SHM_SEM_KEY, 0, 0)) == -1){
-		slog(EROGATORE, "erogatore_ticket.pid.%d.semget.services_shm_sem.failed!", getpid());
+		slog(OPERATORE, "operatore.pid.%d.semget.services_shm_sem.failed!", getpid());
 		err_exit(strerror(errno));
 	}	
 	
 	if ((sportelliShmId = shmget(SPORTELLI_SHARED_MEMORY_KEY, 0, 0)) == -1){
-		slog(EROGATORE, "erogatore_ticket.pid.%d.shmget.service_shared_memory.failed!", getpid());
+		slog(OPERATORE, "operatore.pid.%d.shmget.service_shared_memory.failed!", getpid());
 		err_exit(strerror(errno));
 	}
 	
 	//
 	if ((sportelliStatShmSemId = semget(SPORTELLI_STATS_SHM_SEM_KEY, 0, 0)) == -1){
-		slog(EROGATORE, "erogatore_ticket.pid.%d.semget.services_shm_sem.failed!", getpid());
+		slog(OPERATORE, "operatore.pid.%d.semget.services_shm_sem.failed!", getpid());
 		err_exit(strerror(errno));
 	}	
 	
 	if ((sportelliStatShmId = shmget(SPORTELLI_STATS_SHARED_MEMORY_KEY, 0, 0)) == -1){
-		slog(EROGATORE, "erogatore_ticket.pid.%d.shmget.service_shared_memory.failed!", getpid());
+		slog(OPERATORE, "operatore.pid.%d.shmget.service_shared_memory.failed!", getpid());
 		err_exit(strerror(errno));
 	}
 
@@ -287,7 +287,7 @@ int main (int argc, char **argv){
 				// ricordarsi di rilasciare operatoreSemId, 2
 				slog(OPERATORE, "operatore.child.pid.%d.updated services with info", getpid());
 			}
-			while (!eod && nofPause > 0){
+			while (!eod){
 				slog(OPERATORE, "operatore.child.pid.%d.waiting services requests", getpid());
 				if (msgrcv(serviceMsgqId, &msgBuff, sizeof(msgBuff) - sizeof(long), getpid(), 0) == -1){
 					slog(OPERATORE, "operatore.child.pid.%d.msgrcv.service request.failed!", getpid());

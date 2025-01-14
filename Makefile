@@ -21,7 +21,7 @@ direttore: src/direttore.o src/simulation_configuration.o src/semapi.o src/simer
 erogatore_ticket: src/erogatore_ticket.o src/semapi.o src/simerr.o src/logapi.o src/simulation_configuration.o src/utils.o
 	$(CC) -o $@ $^
 
-utente: src/utente.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o 
+utente: src/utente.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o src/simulation_stats_api.o
 	$(CC) -o $@ $^
 
 sportello: src/sportello.o src/simerr.o src/logapi.o src/semapi.o src/simulation_configuration.o src/utils.o
@@ -31,4 +31,4 @@ operatore: src/operatore.o src/simulation_configuration.o src/semapi.o src/simer
 	$(CC) -o $@ $^
 
 clean:
-	rm -f $(EXEC) src/*.o
+	rm -f $(EXEC) src/*.o *.csv

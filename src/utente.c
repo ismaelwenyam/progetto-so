@@ -12,6 +12,7 @@
 #include "shmapi.h"
 #include "msgapi.h"
 #include "simulation_configuration.h"
+#include "simulation_stats.h"
 
 int main (int argc, char **argv){
 	srand(time(NULL) + getpid());
@@ -56,6 +57,14 @@ int main (int argc, char **argv){
 		slog(UTENTE, "utente.pid.%d.shmget.service_shared_memory.failed!", getpid());
 		err_exit(strerror(errno));
 	}
+	if ((statsShmSemId = semget(STATS_SHM_SEM_KEY, 0, 0)) == -1){
+		slog(UTENTE, "utente.pid.%d.semget.statistics shared memory sem.failed!", getpid());
+		err_exit(strerror(errno)); 
+	}
+	if ((statisticsShmId = shmget(STATISTICS_SHARED_MEMORY, 0, 0)) == -1){
+		slog(UTENTE, "utente.pid.%d.shmget.statistics shared memory failed", getpid());
+		err_exit(strerror(errno));
+	}
 
 	int days = 0;
 	int range, pServ;
@@ -75,6 +84,8 @@ int main (int argc, char **argv){
 	MsgBuff msgBuff;
 	ServizioAdtPtr servicesPtr;
 	SportelloAdt sportello;
+	struct timespec start, end;
+	long elapsedTime;
 	slog(UTENTE, "utente.pid.%d.completed initialization", getpid());
 	if (release_sem(utenteSemId, 0) == -1){
 			slog(UTENTE, "utente.pid.%d.release_sem.utente_sync_sem.semun.0.failed!", getpid());
@@ -182,7 +193,8 @@ int main (int argc, char **argv){
 				continue;
 			}
 			// Il tempo di erogazione del servizio viene calcolato dal momento in cui l'utente si mette in fila.
-			// TODO calcolare tempo si start e inserirlo nelle statistiche (tenendo conto del parametro n_nano_secs) (tempo di attesa, erogazione)
+			// TODO calcolare tempo si start e inserirlo nelle statistiche (tenendo conto del parametro n_nano_secs) (tempo di attesa) - citare CHATGPT
+			clock_gettime(CLOCK_MONOTONIC, &start);
 			if (reserve_sem(sportello.workerDeskSemId, sportello.workerDeskSemun) == -1){
 				slog(UTENTE, 
 					"utente.pid.%d.couldn't get in queue of sportello(operatore sem).semid.%d.semun.%d", 
@@ -194,6 +206,15 @@ int main (int argc, char **argv){
 				// TODO calcolare tempo di end e inserirlo nelle statistiche (tempo di attesa)
 				break;
 			}
+			//TODO remove sleep
+			sleep(1);
+			// TODO calcolare tempo si start e inserirlo nelle statistiche (tenendo conto del parametro n_nano_secs) (tempo di attesa)
+			clock_gettime(CLOCK_MONOTONIC, &end);
+			elapsedTime = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
+			if (update_waiting_time(statisticsShmId, statsShmSemId, servicesList[i], elapsedTime) == -1){
+				slog(UTENTE, "utente.pid.%d.failed to update_waiting_time", getpid());
+			}
+			slog(UTENTE, "utente.pid.%d.elapsed time: %.2ld", getpid(), elapsedTime);	
 			slog(UTENTE, "utente.pid.%d.reserve_sem.%d.semun.%d", getpid(), sportello.workerDeskSemId, sportello.workerDeskSemun);
 			// TODO calcolare tempo di end e inserirlo nelle statistiche (tempo di attesa)
 			msgBuff.mtype = sportello.operatorPid;
@@ -202,13 +223,11 @@ int main (int argc, char **argv){
 			slog(UTENTE, "utente.pid.%d.sending request to operatore", getpid());
 			if (msgsnd(serviceMsgqId, &msgBuff, sizeof(msgBuff) - sizeof(long), 0) == -1){
 				slog(UTENTE, "utente.pid.%d.msgsnd.service msgq to operatore %d.failed!", getpid(), sportello.operatorPid);
-				// TODO calcolare tempo di end e inserirlo nelle statistiche (tempo di erogazione servizio)
 				continue;
 			} 
 			slog(UTENTE, "utente.pid.%d.sent service to operatore.pid.%d", getpid(), sportello.operatorPid);
 			
 			//TODO attende il tempario	
-			// TODO calcolare tempo di end e inserirlo nelle statistiche (tempo di erogazione servizio)
 			if (release_sem(sportello.workerDeskSemId, sportello.workerDeskSemun) == -1){
 				slog(UTENTE, 
 					"utente.pid.%d.couldn't release sportello(operatore sem).semid.%d.semun.%d", 

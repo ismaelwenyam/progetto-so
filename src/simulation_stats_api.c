@@ -34,6 +34,7 @@ int init_statistics (int shmId, int semId, const char **services){
 		statisticsPtr->services[i].totalServicesNotProvided = 0;
 		statisticsPtr->services[i].averageDailyServicesProvided = 0.0;
 		statisticsPtr->services[i].averageDailyServicesNotProvided = 0.0;
+		statisticsPtr->services[i].averageWaitingTimeDaily = 0.0;
 		statisticsPtr->services[i].averageWaitingTimeSimulation = 0.0;
 		statisticsPtr->services[i].averageServiceDurationDaily = 0.0;
 	}
@@ -84,7 +85,8 @@ int print_stats (int shmId, int semId, int ssshmId, int sssemId, int day, int no
 		printf("%26.2f %31.2f %34.2f %26.2f %30.2f\n", statisticsPtr->services[i].averageDailyUsersServed, 
 						statisticsPtr->services[i].averageDailyServicesProvided, 
 						statisticsPtr->services[i].averageDailyServicesNotProvided,
-						statisticsPtr->services[i].averageWaitingTimeDaily, 
+						statisticsPtr->services[i].averageWaitingTimeDaily,
+						/*statisticsPtr->services[i].usersServedDaily == 0 ? 0 : statisticsPtr->services[i].waitingTimeDaily/(float)statisticsPtr->services[i].usersServedDaily,*/
 						statisticsPtr->services[i].averageServiceDurationDaily);
 	}
 	puts("");
@@ -151,7 +153,7 @@ int print_stats (int shmId, int semId, int ssshmId, int sssemId, int day, int no
 }
 
 int reset_statistics (int shmId, int semId){
-	printf("start reset_statistics");
+	printf("start reset_statistics\n");
 	//reserve semaforo per accesso ad shm statistiche
 	if (reserve_sem(semId, 0) == -1){
 		printf("failed to reserve stats shm sem\n");
@@ -166,6 +168,15 @@ int reset_statistics (int shmId, int semId){
 	//inizializzazione delle statistichie
 	statisticsPtr->activeOperatorsDaily = 0;
 	statisticsPtr->averageBreaksDaily = 0.0;
+	for (int i = 0; i < SERVICES; i++){
+		statisticsPtr->services[i].averageDailyUsersServed = 0.0;
+		statisticsPtr->services[i].averageDailyServicesProvided = 0.0;
+		statisticsPtr->services[i].averageDailyServicesNotProvided = 0.0;
+		statisticsPtr->services[i].averageWaitingTimeDaily = 0.0;
+		statisticsPtr->services[i].averageServiceDurationDaily = 0.0;
+		//Not to be printed
+
+	}
 	//TODO inizializzare le statistiche per servizio
 	//release semaforo accesso statistiche
 	if (release_sem(semId, 0) == -1){
@@ -288,6 +299,7 @@ int update_user_served_stat (int shmId, int semId, char *service, int nofUsers){
 
 	for (int i = 0; i < SERVICES; i++){
 		if (strcmp(statisticsPtr->services[i].serviceType, service) == 0){
+			statisticsPtr->services[i].usersServedDaily += 1;
 			statisticsPtr->services[i].totalUsersServed += 1;	
 			statisticsPtr->services[i].averageDailyUsersServed += 1/(float)nofUsers;
 			break;	
@@ -345,5 +357,164 @@ int update_operator_seat_ratio (int shmId, int semId, char *service, int nofWork
 		return -1;
 	}
 	printf("end update_operator_seat_ratio\n");
+	return 0;
+}
+
+
+int update_waiting_time (int shmId, int semId, char *service, long elapsed){
+	printf("start update_av_waiting_time\n");
+	if (reserve_sem(semId, 0) == -1){
+		printf("failed to reserve stats shm sem\n");
+		return -1;
+	}
+	//accesso a statistiche 
+	StatisticsAdtPtr statisticsPtr = shmat(shmId, NULL, SHM_RND);
+	if (statisticsPtr == (void*)-1){
+		printf("failed to attach stats shm\n");
+		return -1;
+	}
+
+	for (int i = 0; i < SERVICES; i++){
+		if (strcmp(statisticsPtr->services[i].serviceType, service) == 0){
+			//TODO fix statisticsPtr->services[i].averageWaitingTimeDaily += elapsed/(double)statisticsPtr->services[i].usersServedDaily; 
+			statisticsPtr->services[i].averageWaitingTimeDaily += 0.0; 
+			statisticsPtr->services[i].averageWaitingTimeSimulation += statisticsPtr->services[i].averageWaitingTimeDaily;
+			break;	
+		}
+
+	}
+
+	//release semaforo accesso statistiche
+	if (release_sem(semId, 0) == -1){
+		printf("failed to release stats shm sem\n");
+		return -1;
+	}
+	//detach da statistiche
+	if (shmdt(statisticsPtr) == -1){
+		printf("failed to detach stats shm\n");
+		return -1;
+	}
+	printf("end update_av_waiting_time\n");
+	return 0;
+}
+
+int create_stats_file (char *dailyStats, char *extraDailyStats, char *operatorSportelloStats, char *totalStats, char *extraTotalStats){
+	printf("start create_daily_stat_file\n");
+	FILE *dailyFile = fopen(dailyStats, "w+");
+	FILE *extraDailyFile = fopen(extraDailyStats, "w+");
+	FILE *operatorRatioFile = fopen(operatorSportelloStats, "w+");
+	FILE *totalFile = fopen(totalStats, "w+");
+	FILE *extraTotalFile = fopen(extraTotalStats, "w+");
+	if (dailyFile == NULL || extraDailyFile == NULL || operatorRatioFile == NULL || totalFile == NULL || extraTotalFile == NULL){
+		printf("failed to open daily stats file\n");
+		return -1;
+	}
+	
+	// header daily stats
+	fprintf(dailyFile, "Day,Service,Av_users_served,Av_provided,Av_not_provided,Av_wait_time,Av_serv_duration\n");
+	fprintf(extraDailyFile, "Day,Active_operators,Av_breaks\n");
+	// header total stats
+	fprintf(totalFile,"Service,Users_served,Services_provided,Services_not_provided,Av_wait_time,Av_serv_duration\n");
+	fprintf(extraTotalFile,"Active_operators,Total_breaks\n");
+
+	// header operato ratio
+	fprintf(operatorRatioFile, "Day,Sportello,Pid,Service,Ratio\n");
+
+	fclose(dailyFile);
+	fclose(extraDailyFile);
+	fclose(operatorRatioFile);
+	fclose(totalFile);
+	fclose(extraTotalFile);
+	printf("end create_daily_stat_file\n");
+	return 0;
+}
+
+int dump_daily_stats (char *filename, char *extraFilename, int shmId, int semId, int day){
+	printf("start dump_daily_stats\n");
+	FILE *file = fopen(filename, "a");
+	FILE *extraFile = fopen(extraFilename, "a");
+	if (file == NULL || extraFile == NULL){
+		printf("failed to open daily stats file\n");
+		return -1;
+	}
+	if (reserve_sem(semId, 0) == -1){
+		printf("failed to reserve stats shm sem\n");
+		return -1;
+	}
+	//accesso a statistiche 
+	StatisticsAdtPtr statisticsPtr = shmat(shmId, NULL, SHM_RND);
+	if (statisticsPtr == (void*)-1){
+		printf("failed to attach stats shm\n");
+		return -1;
+	}
+	
+	for(int i = 0; i < SERVICES; i++){
+		fprintf(file, "%d,%s,%.2f,%.2f,%.2f,%.2f,%.2f\n", day, statisticsPtr->services[i].serviceType,
+						statisticsPtr->services[i].averageDailyUsersServed, 
+						statisticsPtr->services[i].averageDailyServicesProvided,
+						statisticsPtr->services[i].averageDailyServicesNotProvided, 
+						statisticsPtr->services[i].averageWaitingTimeDaily, 
+						statisticsPtr->services[i].averageServiceDurationDaily);
+
+
+	}
+	
+	fprintf(extraFile, "%d,%d,%.2f\n", day, statisticsPtr->activeOperatorsDaily, statisticsPtr->averageBreaksDaily);
+	
+	
+	//release semaforo accesso statistiche
+	if (release_sem(semId, 0) == -1){
+		printf("failed to release stats shm sem\n");
+		return -1;
+	}
+	//detach da statistiche
+	if (shmdt(statisticsPtr) == -1){
+		printf("failed to detach stats shm\n");
+		return -1;
+	}
+	fclose(file);
+	fclose(extraFile);
+	printf("end dump_daily_stats\n");
+	return 0;
+}
+
+
+int dump_operator_daily_ratio (char *filename, int shmId, int semId, int day, int nofWorkerSeats){
+	printf("start dump_operator_daily_ratio\n");
+	FILE *file = fopen(filename, "a");
+	if (file == NULL){
+		printf("failed to open daily stats file\n");
+		return -1;
+	}
+	if (reserve_sem(semId, 0) == -1){
+		printf("failed to reserve sportelli stats shm sem\n");
+		return -1;
+	}
+	SportelloStatAdtPtr sportelliStatsPtr = shmat(shmId, NULL, SHM_RND);
+	if (sportelliStatsPtr == (void*)-1){
+		printf("failed to attach sportelli stats shm\n");
+		return -1;
+	}
+	fprintf(file, "%d,", day);
+	for (int i = 0; i < nofWorkerSeats; i++){
+		if (i == 0){
+			fprintf(file, "%d,%d,%s,%.2f\n",i+1, sportelliStatsPtr[i].pid, sportelliStatsPtr[i].service, sportelliStatsPtr[i].ratio);
+		}else{
+			fprintf(file, "%s,%d,%d,%s,%.2f\n", "", i+1, sportelliStatsPtr[i].pid, sportelliStatsPtr[i].service, sportelliStatsPtr[i].ratio);
+		}
+	}
+
+
+	if (release_sem(semId, 0) == -1){
+		printf("failed to release sportelli stats shm sem\n");
+		return -1;
+	}
+	//detach da statistiche
+	if (shmdt(sportelliStatsPtr) == -1){
+		printf("failed to detach sportelli stats shm\n");
+		return -1;
+	}
+	fclose(file);
+	printf("end dump_operator_daily_ratio\n");
 	return 0;
 }
