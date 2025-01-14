@@ -52,4 +52,5 @@ int update_waiting_time (int shmId, int semId, char *service, long elapsed);
 int create_stats_file (char *filename, char *extraFilename, char *opRatioFilename, char *totalFilename, char *extraTotalFilename);
 int dump_daily_stats(char *filename, char *extraFilename, int shmId, int semId, int day);
 int dump_operator_daily_ratio (char *filename, int shmId, int semId, int day, int nofWorkerSeats);
+int dump_total_stats (char *filename, char *extraFilename, int shmId, int semId);
 #endif

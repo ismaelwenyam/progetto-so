@@ -414,7 +414,7 @@ int create_stats_file (char *dailyStats, char *extraDailyStats, char *operatorSp
 	fprintf(dailyFile, "Day,Service,Av_users_served,Av_provided,Av_not_provided,Av_wait_time,Av_serv_duration\n");
 	fprintf(extraDailyFile, "Day,Active_operators,Av_breaks\n");
 	// header total stats
-	fprintf(totalFile,"Service,Users_served,Services_provided,Services_not_provided,Av_wait_time,Av_serv_duration\n");
+	fprintf(totalFile,"Service,Users_served,Provided,Not_provided,Av_wait_time,Av_serv_duration\n");
 	fprintf(extraTotalFile,"Active_operators,Total_breaks\n");
 
 	// header operato ratio
@@ -516,5 +516,55 @@ int dump_operator_daily_ratio (char *filename, int shmId, int semId, int day, in
 	}
 	fclose(file);
 	printf("end dump_operator_daily_ratio\n");
+	return 0;
+}
+
+
+int dump_total_stats (char *filename, char *extraFilename, int shmId, int semId){
+	printf("start dump_total_stats\n");
+	FILE *file = fopen(filename, "a");
+	FILE *extraFile = fopen(extraFilename, "a");
+	if (file == NULL || extraFile == NULL){
+		printf("failed to open daily stats file\n");
+		return -1;
+	}
+	if (reserve_sem(semId, 0) == -1){
+		printf("failed to reserve stats shm sem\n");
+		return -1;
+	}
+	//accesso a statistiche 
+	StatisticsAdtPtr statisticsPtr = shmat(shmId, NULL, SHM_RND);
+	if (statisticsPtr == (void*)-1){
+		printf("failed to attach stats shm\n");
+		return -1;
+	}
+
+	for (int i = 0; i < SERVICES; i++){
+		fprintf(file, "%s,%d,%d,%d,%.2f,%.2f\n", statisticsPtr->services[i].serviceType,
+							statisticsPtr->services[i].totalUsersServed,
+							statisticsPtr->services[i].totalServicesProvided,
+							statisticsPtr->services[i].totalServicesNotProvided,
+							statisticsPtr->services[i].averageWaitingTimeSimulation,
+							statisticsPtr->services[i].averageServiceDurationSimulation);
+
+	}
+	
+	fprintf(extraFile, "%d,%d\n", statisticsPtr->activeOperatorsSimulation, statisticsPtr->totalBreaksSimulation);
+	
+
+	//release semaforo accesso statistiche
+	if (release_sem(semId, 0) == -1){
+		printf("failed to release stats shm sem\n");
+		return -1;
+	}
+	//detach da statistiche
+	if (shmdt(statisticsPtr) == -1){
+		printf("failed to detach stats shm\n");
+		return -1;
+	}
+	fclose(file);
+	fclose(extraFile);
+
+	printf("end dump_total_stats\n");
 	return 0;
 }

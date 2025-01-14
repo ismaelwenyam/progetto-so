@@ -2,7 +2,7 @@
 CC = gcc
 INCLUDES = -I./include
 CFLAGS = -Wvla -Wextra -Werror -D_GNU_SOURCE
-EXEC = direttore erogatore_ticket utente sportello operatore
+EXEC = direttore erogatore_ticket utente sportello operatore add_user
 
 ifdef DEBUG
     CFLAGS += -DDEBUG -g
@@ -30,5 +30,7 @@ sportello: src/sportello.o src/simerr.o src/logapi.o src/semapi.o src/simulation
 operatore: src/operatore.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o src/utils.o src/simulation_stats_api.o
 	$(CC) -o $@ $^
 
+add_user: src/add_users.o src/simerr.o
+	$(CC) -o $@ $^
 clean:
 	rm -f $(EXEC) src/*.o *.csv

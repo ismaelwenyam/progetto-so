@@ -63,7 +63,7 @@ int main (int argc, char **argv) {
 	while (days < configuration.simDuration){
 		
 		//slog(SPORTELLO, "sportello.pid.%d.requesting role for day %d", getpid(), days+1);
-		msgBuff.mtype = DIRETTORE_GROUP;
+		msgBuff.mtype = SPORTELLO_GROUP;
 		msgBuff.payload.senderPid = getpid();
 		strcpy(msgBuff.payload.msg, ROLE);
 		if (msgsnd(dirMsgQueueId, &msgBuff, sizeof(msgBuff) - sizeof(long), 0) == -1){

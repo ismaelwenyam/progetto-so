@@ -357,7 +357,7 @@ int main (int argc, char **argv){
 		
 		slog(DIRETTORE, "direttore.pid.%d.waiting sportelli request of role", getpid());
 		for (int i = 0; i < configuration.nofWorkerSeats; i++){
-			if (msgrcv(dirMsgQueueId, &msgBuff, sizeof(msgBuff) - sizeof(long), DIRETTORE_GROUP, 0) == -1){
+			if (msgrcv(dirMsgQueueId, &msgBuff, sizeof(msgBuff) - sizeof(long), SPORTELLO_GROUP, 0) == -1){
 				slog(DIRETTORE, "direttore.pid.%d.msgrcv.from sportello group.failed!", getpid());
 				err_exit(strerror(errno));
 			}
@@ -534,12 +534,28 @@ int main (int argc, char **argv){
 		print_stats(statisticsShmId, statsShmSemId, sportelliStatShmId, sportelliStatShmSemId, days + 1, configuration.nofWorkerSeats);
 		dump_daily_stats ("./daily_stats.csv", "./extra_daily_stats.csv", statisticsShmId, statsShmSemId, days +1);
 		dump_operator_daily_ratio("./operator_ratio.csv", sportelliStatShmId, sportelliStatShmSemId, days + 1, configuration.nofWorkerSeats);
+		dump_total_stats("./total_stats.csv", "./extra_total_stats.csv", statisticsShmId, statsShmSemId);
 		reset_statistics(statisticsShmId, statsShmSemId);
 		
 		if (release_sem(servicesShmSemId, 0) == -1){
 			slog(DIRETTORE, "direttore.pid.%d.release_sem.services shm sem.failed!", getpid());
 			err_exit(strerror(errno));
 		}
+		if (msgrcv(dirMsgQueueId, &msgBuff, sizeof(msgBuff) - sizeof(long), DIRETTORE_GROUP, IPC_NOWAIT) == -1){
+			if (errno != ENOMSG){
+				slog(DIRETTORE, "direttore.pid.%d.msgrcv.from DIRETTORE_GROUP group.failed!", getpid());
+				err_exit(strerror(errno));
+			}
+			slog(DIRETTORE, "direttore.pid.%d.msgrcv.director didn't receive increase of users", getpid());
+		}else{
+			if (strcmp(msgBuff.payload.msg, ADD) == 0){
+				slog(DIRETTORE, "direttore.pid.%d.received instruction from %d to increase users", getpid(), msgBuff.payload.senderPid);
+				create_utente(configuration.nNewUsers);
+				users += configuration.nNewUsers;
+				slog(DIRETTORE, "direttore.pid.%d.updated users count: %d", getpid(), users);
+			}
+		}
+		
 
 		days++;
 	}

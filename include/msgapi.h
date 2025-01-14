@@ -17,6 +17,7 @@
 //message code
 #define MSG_LEN 128
 #define ROLE "role"
+#define ADD "add"
 
 typedef struct payload Payload;
 struct payload {
