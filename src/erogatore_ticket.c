@@ -39,6 +39,11 @@ void erogatoreSignalHandler(int sig){
 }
 
 int main (int argc, char **argv){
+	int configurationSemId;
+	if ((configurationSemId = semget(CONFIGURATION_SEM_KEY, 0, 0)) == -1){
+		slog(EROGATORE, "erogatore_ticket.pid.%d.semget.configuration sem.failed", getpid());
+		err_exit(strerror(errno));
+	}
 	ConfigurationAdt configuration = get_config();
 	slog(EROGATORE, "erogatore_ticket.pid.%d", getpid());	
 	slog(EROGATORE, "erogatore_ticket.pid.%d.init initialization", getpid());

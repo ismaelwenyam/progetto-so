@@ -40,6 +40,9 @@ void print_config (ConfigurationAdt configuration){
 	slog(DIRETTORE, "explode_threshold %d", configuration.explodeThreshold);
 	slog(DIRETTORE, "n_requests %d", configuration.nRequests);
 	slog(DIRETTORE, "n_new_users %d", configuration.nRequests);
+	slog(DIRETTORE, "timeout %d", configuration.timeout);
+	slog(DIRETTORE, "explode %d", configuration.explode);
+	puts("");
 }
 
 void print_logs() {
@@ -48,6 +51,7 @@ void print_logs() {
 	slog(SPORTELLO, "logs from sportello");
 	slog(OPERATORE, "logs from operatore");
 	slog(UTENTE, "logs from utente");
+	puts("");
 }
 
 
@@ -58,6 +62,16 @@ int main (int argc, char **argv){
 	srand(time(NULL) + getpid());
 	print_logs();
 	slog(DIRETTORE, "direttore.pid.%d.started", getpid());
+	int configurationSemId;
+	if ((configurationSemId = semget(CONFIGURATION_SEM_KEY, 2, IPC_CREAT | IPC_EXCL | S_IWUSR | S_IRUSR)) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.semget.configuration sem.failed", getpid());
+		err_exit(strerror(errno));
+	}
+	if (init_sem_available(configurationSemId, 0) == -1 || init_sem_available(configurationSemId, 1) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.init_sem_available.config sem.failed!", getpid());
+		err_exit(strerror(errno));
+	}
+	
 	ConfigurationAdt configuration = get_config();
 	if (configuration.simDuration <= 0){
 		slog(DIRETTORE, "direttore.pid.%d.simDuration = %d.aborting simulation", getpid(), configuration.simDuration);
@@ -176,7 +190,7 @@ int main (int argc, char **argv){
 	}
 	slog(DIRETTORE, "direttore.pid.%d.semget.ipc_creat.sem access sportelli shm.ok!", getpid());
 	if (init_sem_available(sportelliShmSemId, 0) == -1){
-		slog(DIRETTORE, "direttore.pid.%d.init_sem_in_use.sportelli_shm_sem.failed!", getpid());
+		slog(DIRETTORE, "direttore.pid.%d.init_sem_available.sportelli_shm_sem.failed!", getpid());
 		err_exit(strerror(errno));
 	}
 
@@ -313,7 +327,6 @@ int main (int argc, char **argv){
 	SportelloStatAdtPtr sportelliStatsPtr;
 	while (days < configuration.simDuration){
 		slog(DIRETTORE, "direttore.pid.%d.day: %d", getpid(), days+1);
-		
 		if (reserve_sem(servicesShmSemId, 0) == -1){
 			slog(DIRETTORE, "direttore.pid.%d.reserve_sem.services shm sem.failed!", getpid());
 			err_exit(strerror(errno));
@@ -454,6 +467,12 @@ int main (int argc, char **argv){
 			err_exit(strerror(errno));
 		}
 		slog(DIRETTORE, "direttore.pid.%d.released erogatore", getpid());
+		
+		if (reserve_sem(configurationSemId, 1) == -1){
+			slog(DIRETTORE, "direttore.pid.%d.failed to reserve config sem", getpid());
+			err_exit(strerror(errno));
+		}
+		slog(DIRETTORE, "direttore.pid.reserve config sem.semid: %d - semun: 1", getpid(), configurationSemId);
 
 		// ensures that users start on start of day
 		for (int i = 0; i < users; i++){
@@ -467,7 +486,14 @@ int main (int argc, char **argv){
 		slog(DIRETTORE, "direttore.pid.%d.sleeping 10s...", getpid());
 		sleep(10);
 		slog(DIRETTORE, "direttore.pid.%d.wake up", getpid());
-		//pause();
+		if (update_timeout(configurationSemId, days+1) == -1){
+			slog(DIRETTORE, "direttore.pid.%d.failed to update timeout", getpid());
+			err_exit(strerror(errno));
+		}
+		if (release_sem(configurationSemId, 1) == -1){
+			slog(DIRETTORE, "direttore.pid.%d.failed to release config sem", getpid());
+			err_exit(strerror(errno));
+		}
 
 		// allow erogatore to kill its child
 		if (release_sem(erogatoreSemId, 3) == -1){
@@ -556,11 +582,12 @@ int main (int argc, char **argv){
 			}
 		}
 		
-
+		
 		days++;
 	}
-	slog(DIRETTORE, "direttore.pid.%d.simulation stats", getpid());
 	slog(DIRETTORE, "direttore.pid.%d.removing ipc resources", getpid());	
+	//TODO remove for gentle resources cancellation
+	sleep(1);
 	delete_ipc_resources(resourceCreationSemId, "sem");
 	delete_ipc_resources(erogatoreSemId, "sem");
 	delete_ipc_resources(utenteSemId, "sem");
@@ -570,6 +597,7 @@ int main (int argc, char **argv){
 	delete_ipc_resources(statsShmSemId, "sem");
 	delete_ipc_resources(sportelliShmSemId, "sem");
 	delete_ipc_resources(sportelliStatShmSemId, "sem");
+	delete_ipc_resources(configurationSemId, "sem");
 	delete_ipc_resources(servicesShmId, "shm");
 	delete_ipc_resources(statisticsShmId, "shm");
 	delete_ipc_resources(sportelliShmId, "shm");

@@ -17,6 +17,11 @@
 
 
 int main (int argc, char **argv) {
+	int configurationSemId;
+	if ((configurationSemId = semget(CONFIGURATION_SEM_KEY, 0, 0)) == -1){
+		slog(SPORTELLO, "sportello.pid.%d.semget.configuration sem.failed", getpid());
+		err_exit(strerror(errno));
+	}
 	ConfigurationAdt configuration = get_config();
 	slog(SPORTELLO, "sportello.pid.%d", getpid());	
 	slog(SPORTELLO, "sportello.pid.%d.init initialization", getpid());

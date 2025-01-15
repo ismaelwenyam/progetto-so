@@ -18,6 +18,11 @@ int main (int argc, char **argv){
 	srand(time(NULL) + getpid());
 	slog(UTENTE, "utente.pid.%d", getpid());	
 	slog(UTENTE, "utente.pid.%d.start initialization...", getpid());
+	int configurationSemId;
+	if ((configurationSemId = semget(CONFIGURATION_SEM_KEY, 0, 0)) == -1){
+		slog(UTENTE, "utente.pid.%d.semget.configuration sem.failed", getpid());
+		err_exit(strerror(errno));
+	}
 	ConfigurationAdt configuration = get_config();
 	//char *services[] = {IRP, ILR, PVB, PBP, APF, AOB};
 	int resourceCreationSemId, utenteSemId, ticketsMsgQueueId, serviceMsgqId;	
@@ -91,7 +96,7 @@ int main (int argc, char **argv){
 			slog(UTENTE, "utente.pid.%d.release_sem.utente_sync_sem.semun.0.failed!", getpid());
 			err_exit(strerror(errno));
 	}
-	while (days < configuration.simDuration){
+	while (1){
 		if (reserve_sem(utenteSemId, 1) == -1){
 			slog(UTENTE, "utente.pid.%d.utenteSem.reserve_sem(%d, 1).failed!", getpid(), utenteSemId);
 			err_exit(strerror(errno));
@@ -107,6 +112,25 @@ int main (int argc, char **argv){
 				err_exit(strerror(errno));
 			}
 			slog(UTENTE, "utente.pid.%d.release_sem.utent_sem:%d.semun:2", getpid(), utenteSemId);
+			slog(UTENTE, "utente.pid.%d.release_sem.utent_sem:%d.semun:2", getpid(), utenteSemId);
+			if (reserve_sem(configurationSemId, 1) == -1){
+				slog(UTENTE, "utente.pid.%d.failed to reserve config sem", getpid());
+				err_exit(strerror(errno));
+			}
+			slog(UTENTE, "utente.pid.%d.reserved config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+			if (get_timeout(configurationSemId) >= configuration.simDuration){
+				if (release_sem(configurationSemId, 1) == -1){
+					slog(UTENTE, "utente.pid.%d.failed to release config sem", getpid());
+					err_exit(strerror(errno));
+				}
+				slog(UTENTE, "utente.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+				break;
+			}
+			if (release_sem(configurationSemId, 1) == -1){
+				slog(UTENTE, "utente.pid.%d.failed to release config sem", getpid());
+				err_exit(strerror(errno));
+			}
+			slog(UTENTE, "utente.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
 			days++;
 			continue;
 		}
@@ -245,8 +269,27 @@ int main (int argc, char **argv){
 			err_exit(strerror(errno));
 		}
 		slog(UTENTE, "utente.pid.%d.release_sem.utent_sem:%d.semun:2", getpid(), utenteSemId);
+		if (reserve_sem(configurationSemId, 1) == -1){
+			slog(UTENTE, "utente.pid.%d.failed to reserve config sem", getpid());
+			err_exit(strerror(errno));
+		}
+		slog(UTENTE, "utente.pid.%d.reserved config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+		if (get_timeout(configurationSemId) >= configuration.simDuration){
+			if (release_sem(configurationSemId, 1) == -1){
+				slog(UTENTE, "utente.pid.%d.failed to release config sem", getpid());
+				err_exit(strerror(errno));
+			}
+			slog(UTENTE, "utente.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+			break;
+		}
+		if (release_sem(configurationSemId, 1) == -1){
+			slog(UTENTE, "utente.pid.%d.failed to release config sem", getpid());
+			err_exit(strerror(errno));
+		}
+		slog(UTENTE, "utente.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
 		days++;
 	}
+	slog(UTENTE, "utente.%d.simulation over", getpid());
 	free(servicesList);
 	
 	

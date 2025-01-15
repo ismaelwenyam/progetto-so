@@ -13,9 +13,17 @@ struct configuration {
 	int explodeThreshold;
 	int nRequests;
 	int nNewUsers;
+	int timeout;
+	int explode;
 };
 
 
 ConfigurationAdt get_config ();
+int update_timeout (int semId, int d);
+int update_explode (int semId, int count);
+int get_timeout (int semId);
+int get_explode (int semId);
+int reset_timeout(int semId);
+int reset_explode(int semId);
 
 #endif
