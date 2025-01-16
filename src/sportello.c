@@ -53,19 +53,19 @@ int main (int argc, char **argv) {
 	}
 	//	
 	if ((sportelliShmSemId = semget(SPORTELLI_SHM_SEM_KEY, 0, 0)) == -1){
-		slog(EROGATORE, "erogatore_ticket.pid.%d.semget.services_shm_sem.failed!", getpid());
+		slog(SPORTELLO, "sportello.pid.%d.semget.services_shm_sem.failed!", getpid());
 		err_exit(strerror(errno));
 	}	
 	
 	if ((sportelliShmId = shmget(SPORTELLI_SHARED_MEMORY_KEY, 0, 0)) == -1){
-		slog(EROGATORE, "erogatore_ticket.pid.%d.shmget.service_shared_memory.failed!", getpid());
+		slog(SPORTELLO, "sportello.pid.%d.shmget.service_shared_memory.failed!", getpid());
 		err_exit(strerror(errno));
 	}
 
 	int days = 0;
 	MsgBuff msgBuff;
 	SportelloAdtPtr sportelliPtr;
-	while (days < configuration.simDuration){
+	while (1){
 		
 		//slog(SPORTELLO, "sportello.pid.%d.requesting role for day %d", getpid(), days+1);
 		msgBuff.mtype = SPORTELLO_GROUP;
@@ -114,6 +114,8 @@ int main (int argc, char **argv) {
 			slog(SPORTELLO, "sportello.pid.%d.shmdt.sportelli shm.failed!", getpid());
 			return -1;
 		}
+
+		// notify sportelli shm has been updated
 		if (release_sem(sportelloSemId, 0) == -1){
 			slog(SPORTELLO, "sportello.pid.%d.release_sem.sportello_sem.failed", getpid());
 			err_exit(strerror(errno));
@@ -130,6 +132,24 @@ int main (int argc, char **argv) {
 			err_exit(strerror(errno));
 		}
 		slog(SPORTELLO, "sportello.pid.%d.release_sem.%d.semun.1", getpid(), sportelloSemId);
+		if (reserve_sem(configurationSemId, 1) == -1){
+			slog(SPORTELLO, "sportello.pid.%d.failed to reserve config sem", getpid());
+			err_exit(strerror(errno));
+		}
+		slog(SPORTELLO, "sportello.pid.%d.reserved config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+		if (get_timeout(configurationSemId) >= configuration.simDuration){
+			if (release_sem(configurationSemId, 1) == -1){
+				slog(SPORTELLO, "sportello.pid.%d.failed to release config sem", getpid());
+				err_exit(strerror(errno));
+			}
+			slog(SPORTELLO, "sportello.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+			break;
+		}
+		if (release_sem(configurationSemId, 1) == -1){
+			slog(SPORTELLO, "sportello.pid.%d.failed to release config sem", getpid());
+			err_exit(strerror(errno));
+		}
+		slog(SPORTELLO, "sportello.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
 
 		days++;
 	}

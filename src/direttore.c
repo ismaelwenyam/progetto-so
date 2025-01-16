@@ -490,10 +490,12 @@ int main (int argc, char **argv){
 			slog(DIRETTORE, "direttore.pid.%d.failed to update timeout", getpid());
 			err_exit(strerror(errno));
 		}
+		slog(DIRETTORE, "direttore.pid.%d.updated timeout", getpid());
 		if (release_sem(configurationSemId, 1) == -1){
 			slog(DIRETTORE, "direttore.pid.%d.failed to release config sem", getpid());
 			err_exit(strerror(errno));
 		}
+		slog(DIRETTORE, "direttore.pid.%d.released config sem.semid: %d - semun: 1", getpid(), configurationSemId);
 
 		// allow erogatore to kill its child
 		if (release_sem(erogatoreSemId, 3) == -1){

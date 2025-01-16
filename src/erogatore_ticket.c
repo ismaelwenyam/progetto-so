@@ -106,7 +106,7 @@ int main (int argc, char **argv){
 		err_exit(strerror(errno));
 	}
 	
-	while (days < configuration.simDuration){
+	while (1){
 		if (reserve_sem(erogatoreSemId, 1) == -1){
 			slog(EROGATORE, "erogatore_ticket.pid.%d.reserve_sem.erogatore_sync_sem.semun.1.failed!", getpid());
 			err_exit(strerror(errno));
@@ -237,6 +237,24 @@ int main (int argc, char **argv){
 			err_exit(strerror(errno));
 		}
 		slog(EROGATORE, "erogatore_ticket.pid.%d.erogatoreSem.release_sem(%d, 1)", getpid(), erogatoreSemId);
+		if (reserve_sem(configurationSemId, 1) == -1){
+			slog(EROGATORE, "erogatore_ticket.pid.%d.failed to reserve config sem", getpid());
+			err_exit(strerror(errno));
+		}
+		slog(EROGATORE, "erogatore_ticekt.pid.%d.reserved config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+		if (get_timeout(configurationSemId) >= configuration.simDuration){
+			if (release_sem(configurationSemId, 1) == -1){
+				slog(EROGATORE, "erogatore_ticket.pid.%d.failed to release config sem", getpid());
+				err_exit(strerror(errno));
+			}
+			slog(EROGATORE, "erogatore_ticket.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+			break;
+		}
+		if (release_sem(configurationSemId, 1) == -1){
+			slog(EROGATORE, "erogatore_ticket.pid.%d.failed to release config sem", getpid());
+			err_exit(strerror(errno));
+		}
+		slog(EROGATORE, "erogatore_ticket.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
 		days++;
 	}	
 	if (msgctl(ticketsMsgQueueId, IPC_RMID, 0) == -1){

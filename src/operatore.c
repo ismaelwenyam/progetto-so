@@ -132,7 +132,7 @@ int main (int argc, char **argv){
 		slog(OPERATORE, "operatore.pid.%d.release_sem.operatore_sem.failed", getpid());
 		err_exit(strerror(errno));
 	}
-	while (days < configuration.simDuration){
+	while (1){
 		
 		if (reserve_sem(operatoreSemId, 1) == -1){
 			slog(OPERATORE, "operatore.pid.%d.release_sem.operatore_sem.failed", getpid());
@@ -337,7 +337,7 @@ int main (int argc, char **argv){
 					sportelliPtr[index].deskSemun = 0;
 					if (release_sem(sportelliShmSemId, 0) == -1){
 						if (release_sem(operatoreSemId, 2) == -1){
-							slog(OPERATORE, "operatore.pid.%d.reserve_sem.operatore sem.semun:2.failed", getpid());
+							slog(OPERATORE, "operatore.child.pid.%d.reserve_sem.operatore sem.semun:2.failed", getpid());
 							err_exit(strerror(errno));
 						}
 						slog(OPERATORE, "operatore.child.pid.%d.release_sem.services shm sem", getpid());
@@ -381,6 +381,25 @@ int main (int argc, char **argv){
 			slog(OPERATORE, "operatore.pid.%d.release_sem.operatore sem", getpid());
 			err_exit(strerror(errno));
 		}
+		//config sem
+		if (reserve_sem(configurationSemId, 1) == -1){
+			slog(OPERATORE, "operatore.pid.%d.failed to reserve config sem", getpid());
+			err_exit(strerror(errno));
+		}
+		slog(OPERATORE, "operatore.pid.%d.reserved config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+		if (get_timeout(configurationSemId) >= configuration.simDuration){
+			if (release_sem(configurationSemId, 1) == -1){
+				slog(OPERATORE, "operatore.pid.%d.failed to release config sem", getpid());
+				err_exit(strerror(errno));
+			}
+			slog(OPERATORE, "operatore.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+			break;
+		}
+		if (release_sem(configurationSemId, 1) == -1){
+			slog(OPERATORE, "operatore.pid.%d.failed to release config sem", getpid());
+			err_exit(strerror(errno));
+		}
+		slog(OPERATORE, "operatore.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
 
 		days++;
 	}	
