@@ -18,11 +18,19 @@
 #define MSG_LEN 128
 #define ROLE "role"
 #define ADD "add"
+#define START_OF_SIMULATION "sos"
+#define START_OF_DAY "sod"
+#define END_OF_DAY "eod"
+#define END_OF_SIMULATION "eos"
+#define PAUSE "pause"
+#define OK "ok"
 
 typedef struct payload Payload;
 struct payload {
 	pid_t senderPid;
 	char msg[MSG_LEN];
+	int temp;
+	long elapsed;
 };
 
 typedef struct msgBuff MsgBuff;

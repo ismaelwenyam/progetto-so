@@ -26,7 +26,6 @@ int main (int argc, char **argv) {
 	slog(SPORTELLO, "sportello.pid.%d", getpid());	
 	slog(SPORTELLO, "sportello.pid.%d.init initialization", getpid());
 	int dirMsgQueueId, sportelloSemId, operatoreSportelloSemId;
-	int servicesShmId, servicesShmSemId;
 	int sportelliShmSemId, sportelliShmId;
 	if ((dirMsgQueueId = msgget(DIR_MESSAGE_QUEUE_KEY, 0)) == -1){
 		slog(SPORTELLO, "sportello.pid.%d.msgget.dir msg queue.failed!", getpid());
@@ -41,14 +40,7 @@ int main (int argc, char **argv) {
 		err_exit(strerror(errno));
 	}
 	if (init_sem_available(operatoreSportelloSemId, 0) == -1){
-		//TODO 
-	}
-	if ((servicesShmSemId = semget(STATS_SHM_SEM_KEY, 0, 0)) == -1){
-		slog(SPORTELLO, "sportello.pid.%d.semget.services shared memory sem.failed!", getpid());
-		err_exit(strerror(errno)); 
-	}
-	if ((servicesShmId = shmget(SERVICE_SHARED_MEMORY, 0, 0)) == -1){
-		slog(SPORTELLO, "sportello.pid.%d.shmget.services shared memory failed", getpid());
+		slog(SPORTELLO, "sportello.pid.%d.init_sem_available.operatoreSportello.failed", getpid());
 		err_exit(strerror(errno));
 	}
 	//	
@@ -131,7 +123,7 @@ int main (int argc, char **argv) {
 			slog(SPORTELLO, "sportello.pid.%d.release_sem.sportello_sem.failed", getpid());
 			err_exit(strerror(errno));
 		}
-		slog(SPORTELLO, "sportello.pid.%d.release_sem.%d.semun.1", getpid(), sportelloSemId);
+		slog(SPORTELLO, "sportello.pid.%d.release_sem.%d.semun.2", getpid(), sportelloSemId);
 		if (reserve_sem(configurationSemId, 1) == -1){
 			slog(SPORTELLO, "sportello.pid.%d.failed to reserve config sem", getpid());
 			err_exit(strerror(errno));

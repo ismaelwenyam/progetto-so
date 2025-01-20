@@ -10,6 +10,9 @@ endif
 
 all: $(EXEC)
 
+debug: 
+	$(MAKE) DEBUG=1
+
 # Regole generiche per compilare file .c in file .o
 src/%.o: src/%.c
 	$(CC) $(INCLUDES) $(CFLAGS) -c $< -o $@
@@ -21,7 +24,7 @@ direttore: src/direttore.o src/simulation_configuration.o src/semapi.o src/simer
 erogatore_ticket: src/erogatore_ticket.o src/semapi.o src/simerr.o src/logapi.o src/simulation_configuration.o src/utils.o
 	$(CC) -o $@ $^
 
-utente: src/utente.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o src/simulation_stats_api.o
+utente: src/utente.o src/semapi.o src/simerr.o src/logapi.o src/simulation_configuration.o src/simulation_stats_api.o
 	$(CC) -o $@ $^
 
 sportello: src/sportello.o src/simerr.o src/logapi.o src/semapi.o src/simulation_configuration.o src/utils.o

@@ -46,6 +46,7 @@ int reset_statistics (int shmId, int semId);
 int add_operator_to_gen_stat (int shmId, int semId);
 int add_pause_stat (int shmId, int semId);
 int update_service_stat (int shmId, int semId, char *service, int serviceProvided);
+int update_service_duration (int shmId, int semId, char *service, int temp);
 int update_user_served_stat (int shmId, int semId, char *service, int nofUsers);
 int update_operator_seat_ratio (int shmId, int semId, char *service, int nofWorkerSeats);
 int update_waiting_time (int shmId, int semId, char *service, long elapsed);

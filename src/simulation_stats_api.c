@@ -37,6 +37,7 @@ int init_statistics (int shmId, int semId, const char **services){
 		statisticsPtr->services[i].averageWaitingTimeDaily = 0.0;
 		statisticsPtr->services[i].averageWaitingTimeSimulation = 0.0;
 		statisticsPtr->services[i].averageServiceDurationDaily = 0.0;
+		statisticsPtr->services[i].usersServedDaily = 0;
 	}
 	//release semaforo accesso statistiche
 	if (release_sem(semId, 0) == -1){
@@ -174,6 +175,7 @@ int reset_statistics (int shmId, int semId){
 		statisticsPtr->services[i].averageDailyServicesNotProvided = 0.0;
 		statisticsPtr->services[i].averageWaitingTimeDaily = 0.0;
 		statisticsPtr->services[i].averageServiceDurationDaily = 0.0;
+		statisticsPtr->services[i].usersServedDaily = 0;
 		//Not to be printed
 
 	}
@@ -376,8 +378,7 @@ int update_waiting_time (int shmId, int semId, char *service, long elapsed){
 
 	for (int i = 0; i < SERVICES; i++){
 		if (strcmp(statisticsPtr->services[i].serviceType, service) == 0){
-			//TODO fix statisticsPtr->services[i].averageWaitingTimeDaily += elapsed/(double)statisticsPtr->services[i].usersServedDaily; 
-			statisticsPtr->services[i].averageWaitingTimeDaily += 0.0; 
+			statisticsPtr->services[i].averageWaitingTimeDaily += elapsed/(double)statisticsPtr->services[i].usersServedDaily; 
 			statisticsPtr->services[i].averageWaitingTimeSimulation += statisticsPtr->services[i].averageWaitingTimeDaily;
 			break;	
 		}
@@ -395,6 +396,43 @@ int update_waiting_time (int shmId, int semId, char *service, long elapsed){
 		return -1;
 	}
 	printf("end update_av_waiting_time\n");
+	return 0;
+}
+
+
+int update_service_duration (int shmId, int semId, char *service, int temp){
+	printf("start add_service_provided\n");
+	if (reserve_sem(semId, 0) == -1){
+		printf("failed to reserve stats shm sem\n");
+		return -1;
+	}
+	//accesso a statistiche 
+	StatisticsAdtPtr statisticsPtr = shmat(shmId, NULL, SHM_RND);
+	if (statisticsPtr == (void*)-1){
+		printf("failed to attach stats shm\n");
+		return -1;
+	}
+
+	for (int i = 0; i < SERVICES; i++){
+		if (strcmp(statisticsPtr->services[i].serviceType, service) == 0){
+			statisticsPtr->services[i].averageServiceDurationDaily += temp/(float)statisticsPtr->services[i].usersServedDaily;	
+			statisticsPtr->services[i].averageServiceDurationSimulation += statisticsPtr->services[i].averageServiceDurationDaily;
+			break;	
+		}	
+	}
+
+
+	//release semaforo accesso statistiche
+	if (release_sem(semId, 0) == -1){
+		printf("failed to release stats shm sem\n");
+		return -1;
+	}
+	//detach da statistiche
+	if (shmdt(statisticsPtr) == -1){
+		printf("failed to detach stats shm\n");
+		return -1;
+	}
+	printf("end add_service_provided\n");
 	return 0;
 }
 

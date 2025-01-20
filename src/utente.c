@@ -26,7 +26,6 @@ int main (int argc, char **argv){
 	ConfigurationAdt configuration = get_config();
 	//char *services[] = {IRP, ILR, PVB, PBP, APF, AOB};
 	int resourceCreationSemId, utenteSemId, ticketsMsgQueueId, serviceMsgqId;	
-	int statsShmSemId, statisticsShmId;
 	int servicesShmSemId, servicesShmId;
 	if ((resourceCreationSemId = semget(RESOURCE_CREATION_SYNC_SEM_KEY, 0, 0)) == -1){
 		slog(UTENTE, "utente.pid.%d.semget.erogatore_sync_sem.failed!", getpid());
@@ -62,14 +61,6 @@ int main (int argc, char **argv){
 		slog(UTENTE, "utente.pid.%d.shmget.service_shared_memory.failed!", getpid());
 		err_exit(strerror(errno));
 	}
-	if ((statsShmSemId = semget(STATS_SHM_SEM_KEY, 0, 0)) == -1){
-		slog(UTENTE, "utente.pid.%d.semget.statistics shared memory sem.failed!", getpid());
-		err_exit(strerror(errno)); 
-	}
-	if ((statisticsShmId = shmget(STATISTICS_SHARED_MEMORY, 0, 0)) == -1){
-		slog(UTENTE, "utente.pid.%d.shmget.statistics shared memory failed", getpid());
-		err_exit(strerror(errno));
-	}
 
 	int days = 0;
 	int range, pServ;
@@ -79,7 +70,7 @@ int main (int argc, char **argv){
 		nRequests = NUMBER_OF_SERVICES;
 	}
 	slog(UTENTE, "utente.pid.%d.nRequests: %d", getpid(), nRequests);
-	char **servicesList = malloc((sizeof(char) * 4) * nRequests);
+	char **servicesList = (char **)malloc(sizeof(char *) * nRequests);
 	if (servicesList == NULL){
 		slog(UTENTE, "utente.pid.%d.malloc.failed", getpid());
 		err_exit(strerror(errno));
@@ -172,7 +163,7 @@ int main (int argc, char **argv){
 		slog(UTENTE, "utente.pid.%d.released sem for services shared memory", getpid());	
 		if (shmdt(servicesPtr) == -1){
 			slog(UTENTE, "utente.pid.%d.shmdt.services shm.failed!", getpid());
-			return -1;
+			err_exit(strerror(errno));
 		}
 		
 		slog(UTENTE, "utente.pid.%d.desired services.requests: %d", getpid(), requests);
@@ -183,7 +174,7 @@ int main (int argc, char **argv){
 	
 		// richiedere tickets per i servizi	
 		for (int i = 0; i < requests; i++){
-			msgBuff.mtype = UTENTE_GROUP;
+			msgBuff.mtype = EROGATORE_GROUP;
 			msgBuff.payload.senderPid = getpid();
 			strcpy(msgBuff.payload.msg, servicesList[i]);
 			slog(UTENTE, "utente.pid.%d.sending ticket request for %s...", getpid(), servicesList[i]);
@@ -235,21 +226,24 @@ int main (int argc, char **argv){
 			// TODO calcolare tempo si start e inserirlo nelle statistiche (tenendo conto del parametro n_nano_secs) (tempo di attesa)
 			clock_gettime(CLOCK_MONOTONIC, &end);
 			elapsedTime = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
-			if (update_waiting_time(statisticsShmId, statsShmSemId, servicesList[i], elapsedTime) == -1){
-				slog(UTENTE, "utente.pid.%d.failed to update_waiting_time", getpid());
-			}
 			slog(UTENTE, "utente.pid.%d.elapsed time: %.2ld", getpid(), elapsedTime);	
 			slog(UTENTE, "utente.pid.%d.reserve_sem.%d.semun.%d", getpid(), sportello.workerDeskSemId, sportello.workerDeskSemun);
 			// TODO calcolare tempo di end e inserirlo nelle statistiche (tempo di attesa)
 			msgBuff.mtype = sportello.operatorPid;
 			msgBuff.payload.senderPid = getpid();
 			strcpy(msgBuff.payload.msg, servicesList[i]);
+			msgBuff.payload.temp = ticketRequest.ticket.se.temp;
+			msgBuff.payload.elapsed = elapsedTime;
 			slog(UTENTE, "utente.pid.%d.sending request to operatore", getpid());
 			if (msgsnd(serviceMsgqId, &msgBuff, sizeof(msgBuff) - sizeof(long), 0) == -1){
 				slog(UTENTE, "utente.pid.%d.msgsnd.service msgq to operatore %d.failed!", getpid(), sportello.operatorPid);
 				continue;
 			} 
 			slog(UTENTE, "utente.pid.%d.sent service to operatore.pid.%d", getpid(), sportello.operatorPid);
+			if (msgrcv(serviceMsgqId, &msgBuff, sizeof(msgBuff) - sizeof(long), getpid(), 0) == -1){
+				slog(UTENTE, "utente.pid.%d.failed to receive confirm from operator: %d", getpid(), sportello.operatorPid);
+				err_exit(strerror(errno));
+			}
 			
 			//TODO attende il tempario	
 			if (release_sem(sportello.workerDeskSemId, sportello.workerDeskSemun) == -1){
@@ -260,6 +254,11 @@ int main (int argc, char **argv){
 					slog(UTENTE, "utente.pid.%d.proceding to request next service ticket", getpid());
 					continue;
 				}
+				break;
+			}
+			if ((msgBuff.payload.msg, END_OF_DAY) == 0){
+				slog(UTENTE, "utente.pid.%d.received eod from operator.updating explode", getpid());
+				//TODO aggiornare explode.
 				break;
 			}
 		}
@@ -280,6 +279,7 @@ int main (int argc, char **argv){
 				err_exit(strerror(errno));
 			}
 			slog(UTENTE, "utente.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+			slog(UTENTE, "utente.%d.simulation over", getpid());
 			break;
 		}
 		if (release_sem(configurationSemId, 1) == -1){
@@ -289,7 +289,8 @@ int main (int argc, char **argv){
 		slog(UTENTE, "utente.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
 		days++;
 	}
-	slog(UTENTE, "utente.%d.simulation over", getpid());
+	//slog(UTENTE, "utente.%d.simulation over", getpid());
+	//TODO also free in errors
 	free(servicesList);
 	
 	
