@@ -183,7 +183,7 @@ int main (int argc, char **argv){
 				index = i;
 			}
 			if (!sportelloFound){
-				slog(OPERATORE, "operatore.child.pid.%d.sportello not found for service: %s", getpid(), msgBuff.payload.msg);
+				slog(OPERATORE, "operatore.child.pid.%d.sportello not found for service: %s", getpid(), role);
 				if (release_sem(sportelliShmSemId, 0) == -1){
 					slog(OPERATORE, "operatore.child.pid.%d.release_sem.services shm sem", getpid());
 					err_exit(strerror(errno));
@@ -193,7 +193,7 @@ int main (int argc, char **argv){
 					err_exit(strerror(errno));
 				}
 				// se nessun sportello fornisce il servizio allora il servizio non puo essere erogato
-				if (update_service_stat(statisticsShmId, statsShmSemId, msgBuff.payload.msg, SERVICE_NOT_PROVIDED) == -1){
+				if (update_service_stat(statisticsShmId, statsShmSemId, role, SERVICE_NOT_PROVIDED) == -1){
 					slog(OPERATORE, "operatore.child.pid.%d.failed to update stats", getpid());
 				}
 				
@@ -212,13 +212,13 @@ int main (int argc, char **argv){
 				err_exit(strerror(errno));
 			}
 			// TODO aggiorna ratio operatore sportello
-			if (update_operator_seat_ratio(sportelliStatShmId, sportelliStatShmSemId, msgBuff.payload.msg, configuration.nofWorkerSeats) == -1){
+			if (update_operator_seat_ratio(sportelliStatShmId, sportelliStatShmSemId, role, configuration.nofWorkerSeats) == -1){
 				slog(OPERATORE, "operatore.child.pid.%d.failed to update sportelli stats", getpid());
 			}
 			
 			// aggiorna servizio erogato
 			//TODO criticita se il numero di utenti dovesse crescere
-			if (update_service_stat(statisticsShmId, statsShmSemId, msgBuff.payload.msg, SERVICE_PROVIDED) == -1){
+			if (update_service_stat(statisticsShmId, statsShmSemId, role, SERVICE_PROVIDED) == -1){
 				slog(OPERATORE, "operatore.child.pid.%d.failed to update stats", getpid());
 			}
 			
