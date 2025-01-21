@@ -201,7 +201,7 @@ int main (int argc, char **argv){
 			}
 			slog(UTENTE, "utente.pid.%d.ticket received", getpid());
 			if (ticketRequest.ticket.eod){
-				slog(UTENTE, "utente.pid.%d.received: eod", getpid());
+				slog(UTENTE, "utente.pid.%d.received.response from erogatore: eod", getpid());
 				break;
 			}
 			slog(UTENTE, "utente.pid.%d.received ticket for service: %s", getpid(), servicesList[i]);
@@ -246,6 +246,8 @@ int main (int argc, char **argv){
 				continue;
 			} 
 			slog(UTENTE, "utente.pid.%d.sent service to operatore.pid.%d", getpid(), sportello.operatorPid);
+
+			slog(UTENTE, "utente.pid.%d.waiting response from operatore.pid.%d", getpid(), sportello.operatorPid);
 			if (msgrcv(serviceMsgqId, &msgBuff, sizeof(msgBuff) - sizeof(long), getpid(), 0) == -1){
 				slog(UTENTE, "utente.pid.%d.failed to receive confirm from operator: %d", getpid(), sportello.operatorPid);
 				err_exit(strerror(errno));
@@ -262,7 +264,7 @@ int main (int argc, char **argv){
 				}
 				break;
 			}
-			if ((msgBuff.payload.msg, END_OF_DAY) == 0){
+			if (strcmp(msgBuff.payload.msg, END_OF_DAY) == 0){
 				slog(UTENTE, "utente.pid.%d.received eod from operator.updating explode", getpid());
 				if (reserve_sem(configurationSemId, 1) == -1){
 					slog(UTENTE, "utente.pid.%d.failed to reserve config sem", getpid());

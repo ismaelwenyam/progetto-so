@@ -21,6 +21,7 @@
 #define START_OF_SIMULATION "sos"
 #define START_OF_DAY "sod"
 #define END_OF_DAY "eod"
+#define RECOVER "rec"
 #define END_OF_SIMULATION "eos"
 #define PAUSE "pause"
 #define OK "ok"
