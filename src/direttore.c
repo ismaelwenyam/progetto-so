@@ -595,7 +595,28 @@ int main (int argc, char **argv){
 				slog(DIRETTORE, "direttore.pid.%d.updated users count: %d", getpid(), users);
 			}
 		}
-		
+		if (reserve_sem(configurationSemId, 1) == -1){
+			slog(DIRETTORE, "direttore.pid.%d.failed to reserve config sem", getpid());
+			err_exit(strerror(errno));
+		}
+		slog(DIRETTORE, "direttore.pid.reserve config sem.semid: %d - semun: 1", getpid(), configurationSemId);
+
+		if (get_explode(configurationSemId) >= configuration.explodeThreshold){
+			if (release_sem(configurationSemId, 1) == -1){
+				slog(DIRETTORE, "direttore.pid.%d.failed to release config sem", getpid());
+				err_exit(strerror(errno));
+			}
+			slog(DIRETTORE, "direttore.pid.%d.released config sem.semid: %d - semun: 1", getpid(), configurationSemId);
+
+			break;
+		}
+
+		if (release_sem(configurationSemId, 1) == -1){
+			slog(DIRETTORE, "direttore.pid.%d.failed to release config sem", getpid());
+			err_exit(strerror(errno));
+		}
+		slog(DIRETTORE, "direttore.pid.%d.released config sem.semid: %d - semun: 1", getpid(), configurationSemId);
+
 		
 		days++;
 	}
@@ -621,9 +642,9 @@ int main (int argc, char **argv){
 	delete_ipc_resources(ticketsMsgQueueId, "msg");
 	if (days >= configuration.simDuration){
 		printf("simulation ended for timeout\n");
+	}else{
+		printf("simulation ended for explode threshold\n");
 	}
-	
-	
 }
 
 

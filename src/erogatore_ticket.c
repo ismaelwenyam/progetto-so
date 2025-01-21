@@ -274,7 +274,7 @@ int main(int argc, char **argv)
 			err_exit(strerror(errno));
 		}
 		slog(EROGATORE, "erogatore_ticekt.pid.%d.reserved config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
-		if (get_timeout(configurationSemId) >= configuration.simDuration)
+		if (get_timeout(configurationSemId) >= configuration.simDuration || get_explode(configurationSemId) >= configuration.explodeThreshold)
 		{
 			if (release_sem(configurationSemId, 1) == -1)
 			{

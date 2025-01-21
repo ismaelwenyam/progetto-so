@@ -98,23 +98,23 @@ int main (int argc, char **argv){
 		slog(UTENTE, "utente.pid.%d.pserv:%d", getpid(), pServ);
 		if (pServ < range){
 			slog(UTENTE, "utente.pid.%d.not going to post office", getpid());
-			if (release_sem(utenteSemId, 2) == -1){
-				slog(UTENTE, "utente.pid.%d.utenteSem.release_sem(%d, 2).failed", getpid(), utenteSemId);
-				err_exit(strerror(errno));
-			}
-			slog(UTENTE, "utente.pid.%d.release_sem.utent_sem:%d.semun:2", getpid(), utenteSemId);
-			slog(UTENTE, "utente.pid.%d.release_sem.utent_sem:%d.semun:2", getpid(), utenteSemId);
 			if (reserve_sem(configurationSemId, 1) == -1){
 				slog(UTENTE, "utente.pid.%d.failed to reserve config sem", getpid());
 				err_exit(strerror(errno));
 			}
 			slog(UTENTE, "utente.pid.%d.reserved config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
-			if (get_timeout(configurationSemId) >= configuration.simDuration){
+			if (get_timeout(configurationSemId) >= configuration.simDuration || get_explode(configurationSemId) >= configuration.explodeThreshold){
 				if (release_sem(configurationSemId, 1) == -1){
 					slog(UTENTE, "utente.pid.%d.failed to release config sem", getpid());
 					err_exit(strerror(errno));
 				}
 				slog(UTENTE, "utente.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+				if (release_sem(utenteSemId, 2) == -1){
+					slog(UTENTE, "utente.pid.%d.utenteSem.release_sem(%d, 2).failed", getpid(), utenteSemId);
+					err_exit(strerror(errno));
+				}
+				slog(UTENTE, "utente.pid.%d.release_sem.utent_sem:%d.semun:2", getpid(), utenteSemId);
+			
 				break;
 			}
 			if (release_sem(configurationSemId, 1) == -1){
@@ -122,6 +122,12 @@ int main (int argc, char **argv){
 				err_exit(strerror(errno));
 			}
 			slog(UTENTE, "utente.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+			if (release_sem(utenteSemId, 2) == -1){
+				slog(UTENTE, "utente.pid.%d.utenteSem.release_sem(%d, 2).failed", getpid(), utenteSemId);
+				err_exit(strerror(errno));
+			}
+			slog(UTENTE, "utente.pid.%d.release_sem.utent_sem:%d.semun:2", getpid(), utenteSemId);
+			
 			days++;
 			continue;
 		}
@@ -258,27 +264,49 @@ int main (int argc, char **argv){
 			}
 			if ((msgBuff.payload.msg, END_OF_DAY) == 0){
 				slog(UTENTE, "utente.pid.%d.received eod from operator.updating explode", getpid());
+				if (reserve_sem(configurationSemId, 1) == -1){
+					slog(UTENTE, "utente.pid.%d.failed to reserve config sem", getpid());
+					err_exit(strerror(errno));
+				}
+				slog(UTENTE, "utente.pid.%d.reserved config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+				if (update_explode(configurationSemId, 1) == -1){
+					if (release_sem(configurationSemId, 1) == -1){
+						slog(UTENTE, "utente.pid.%d.failed to release config sem", getpid());
+						err_exit(strerror(errno));
+					}
+					slog(UTENTE, "utente.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+		
+					slog(UTENTE, "utente.pid.%d.failed to update explode", getpid());
+					err_exit(strerror(errno));
+				}
+				if (release_sem(configurationSemId, 1) == -1){
+					slog(UTENTE, "utente.pid.%d.failed to release config sem", getpid());
+					err_exit(strerror(errno));
+				}
+				slog(UTENTE, "utente.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+		
 				//TODO aggiornare explode.
 				break;
 			}
 		}
 
-		if (release_sem(utenteSemId, 2) == -1){
-			slog(UTENTE, "utente.pid.%d.utenteSem.release_sem(%d, 2).failed", getpid(), utenteSemId);
-			err_exit(strerror(errno));
-		}
-		slog(UTENTE, "utente.pid.%d.release_sem.utent_sem:%d.semun:2", getpid(), utenteSemId);
 		if (reserve_sem(configurationSemId, 1) == -1){
 			slog(UTENTE, "utente.pid.%d.failed to reserve config sem", getpid());
 			err_exit(strerror(errno));
 		}
 		slog(UTENTE, "utente.pid.%d.reserved config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
-		if (get_timeout(configurationSemId) >= configuration.simDuration){
+		if (get_timeout(configurationSemId) >= configuration.simDuration || get_explode(configurationSemId) >= configuration.explodeThreshold){
 			if (release_sem(configurationSemId, 1) == -1){
 				slog(UTENTE, "utente.pid.%d.failed to release config sem", getpid());
 				err_exit(strerror(errno));
 			}
 			slog(UTENTE, "utente.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+			if (release_sem(utenteSemId, 2) == -1){
+				slog(UTENTE, "utente.pid.%d.utenteSem.release_sem(%d, 2).failed", getpid(), utenteSemId);
+				err_exit(strerror(errno));
+			}
+			slog(UTENTE, "utente.pid.%d.release_sem.utent_sem:%d.semun:2", getpid(), utenteSemId);
+
 			slog(UTENTE, "utente.%d.simulation over", getpid());
 			break;
 		}
@@ -287,6 +315,11 @@ int main (int argc, char **argv){
 			err_exit(strerror(errno));
 		}
 		slog(UTENTE, "utente.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+		
+		if (release_sem(utenteSemId, 2) == -1){
+			slog(UTENTE, "utente.pid.%d.utenteSem.release_sem(%d, 2).failed", getpid(), utenteSemId);
+			err_exit(strerror(errno));
+		}
 		days++;
 	}
 	//slog(UTENTE, "utente.%d.simulation over", getpid());
