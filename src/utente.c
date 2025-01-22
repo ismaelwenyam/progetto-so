@@ -299,12 +299,7 @@ int main(int argc, char **argv)
 			{
 				slog(UTENTE,
 					 "utente.pid.%d.couldn't release sportello(operatore sem).semid.%d.semun.%d",
-					 getpid());
-				if (requests > 1)
-				{
-					slog(UTENTE, "utente.pid.%d.proceding to request next service ticket", getpid());
-					continue;
-				}
+					 getpid(), sportello.workerDeskSemId, sportello.workerDeskSemun);
 				break;
 			}
 			if (strcmp(msgBuff.payload.msg, END_OF_DAY) == 0 || strcmp(msgBuff.payload.msg, "") == 0)

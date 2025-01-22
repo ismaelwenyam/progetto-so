@@ -119,10 +119,6 @@ int main (int argc, char **argv) {
 			err_exit(strerror(errno));
 		}
 		
-		if (release_sem(sportelloSemId, 2) == -1){
-			slog(SPORTELLO, "sportello.pid.%d.release_sem.sportello_sem.failed", getpid());
-			err_exit(strerror(errno));
-		}
 		slog(SPORTELLO, "sportello.pid.%d.release_sem.%d.semun.2", getpid(), sportelloSemId);
 		if (reserve_sem(configurationSemId, 1) == -1){
 			slog(SPORTELLO, "sportello.pid.%d.failed to reserve config sem", getpid());
@@ -135,6 +131,10 @@ int main (int argc, char **argv) {
 				err_exit(strerror(errno));
 			}
 			slog(SPORTELLO, "sportello.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+			if (release_sem(sportelloSemId, 2) == -1){
+				slog(SPORTELLO, "sportello.pid.%d.release_sem.sportello_sem.failed", getpid());
+				err_exit(strerror(errno));
+			}
 			break;
 		}
 		if (release_sem(configurationSemId, 1) == -1){
@@ -142,7 +142,11 @@ int main (int argc, char **argv) {
 			err_exit(strerror(errno));
 		}
 		slog(SPORTELLO, "sportello.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
-
+		
+		if (release_sem(sportelloSemId, 2) == -1){
+			slog(SPORTELLO, "sportello.pid.%d.release_sem.sportello_sem.failed", getpid());
+			err_exit(strerror(errno));
+		}
 		days++;
 	}
 	slog(SPORTELLO, "sportello.pid.%d.delete ipc resources", getpid());

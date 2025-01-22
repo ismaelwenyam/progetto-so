@@ -338,6 +338,7 @@ int main(int argc, char **argv)
 				slog(OPERATORE, "operatore.child.pid.%d.updated services with info", getpid());
 			}
 			bool endOfDay = false;
+			bool inPause = false;
 			while (1)
 			{
 				slog(OPERATORE, "operatore.child.pid.%d.waiting services requests", getpid());
@@ -412,6 +413,7 @@ int main(int argc, char **argv)
 					slog(OPERATORE, "operatore.child.pid.%d.failed to respond to service request", getpid());
 					err_exit(strerror(errno));
 				}
+
 
 				if (nofPause > 0)
 				{

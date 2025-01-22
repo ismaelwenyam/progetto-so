@@ -577,7 +577,6 @@ int main (int argc, char **argv){
 		print_stats(statisticsShmId, statsShmSemId, sportelliStatShmId, sportelliStatShmSemId, days + 1, configuration.nofWorkerSeats);
 		dump_daily_stats ("./daily_stats.csv", "./extra_daily_stats.csv", statisticsShmId, statsShmSemId, days +1);
 		dump_operator_daily_ratio("./operator_ratio.csv", sportelliStatShmId, sportelliStatShmSemId, days + 1, configuration.nofWorkerSeats);
-		dump_total_stats("./total_stats.csv", "./extra_total_stats.csv", statisticsShmId, statsShmSemId);
 		reset_statistics(statisticsShmId, statsShmSemId);
 		
 		if (release_sem(servicesShmSemId, 0) == -1){
@@ -623,9 +622,9 @@ int main (int argc, char **argv){
 		
 		days++;
 	}
-	slog(DIRETTORE, "direttore.pid.%d.removing ipc resources", getpid());	
 	//TODO remove for gentle resources cancellation
-	sleep(1);
+	dump_total_stats("./total_stats.csv", "./extra_total_stats.csv", statisticsShmId, statsShmSemId);
+	slog(DIRETTORE, "direttore.pid.%d.removing ipc resources", getpid());	
 	delete_ipc_resources(resourceCreationSemId, "sem");
 	delete_ipc_resources(erogatoreSemId, "sem");
 	delete_ipc_resources(utenteSemId, "sem");
