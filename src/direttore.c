@@ -57,7 +57,6 @@ void print_logs() {
 
 const char *services[] = {IRP, ILR, PVB, PBP, APF, AOB};
 
-		//TODO se il direttore dove fallire gestire tutti gli altri processi
 int main (int argc, char **argv){	
 	srand(time(NULL) + getpid());
 	print_logs();
@@ -78,9 +77,13 @@ int main (int argc, char **argv){
 		err_exit("simDuration must be greater than 0");
 	}
 	print_config(configuration);
+	if (reset_explode(configurationSemId) == -1){
+		slog(DIRETTORE, "direttore.pid.%d.failed to reset config_explode", getpid());
+		err_exit(strerror(errno));
+	}
 
 	//TODO replace with params from config
-	if (create_stats_file("./daily_stats.csv", "./extra_daily_stats.csv", "./operator_ratio.csv", "total_stats.csv", "extra_total_stats.csv") == -1){
+	if (create_stats_file("./daily_stats.csv", "./extra_daily_stats.csv", "./operator_ratio.csv", "./total_stats.csv", "./extra_total_stats.csv") == -1){
 		slog(DIRETTORE, "direttore.pid.%d.failed to create csv stats file", getpid());	
 		slog(DIRETTORE, "direttore.pid.%d.simulation proceeding without stats files", getpid());
 	}
@@ -641,9 +644,9 @@ int main (int argc, char **argv){
 	delete_ipc_resources(serviceMsgqId, "msg");
 	delete_ipc_resources(ticketsMsgQueueId, "msg");
 	if (days >= configuration.simDuration){
-		printf("simulation ended for timeout\n");
+		printf("SIMULATION ENDED FOR TIMEOUT\n");
 	}else{
-		printf("simulation ended for explode threshold\n");
+		printf("SIMULATION ENDED FOR EXPLODE THRESHOLD\n");
 	}
 }
 

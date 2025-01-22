@@ -393,9 +393,9 @@ int main(int argc, char **argv)
 					continue;
 				}
 
-				strcpy(msgBuff.payload.msg, OK);
+				
 
-				slog(OPERATORE, "operatore.child.pid.%d.received.service req from user: %d service: %s", getpid(), msgBuff.payload.senderPid, msgBuff.payload.msg);
+				slog(OPERATORE, "operatore.child.pid.%d.received.service req from user: %d service: %s", getpid(), msgBuff.mtype, msgBuff.payload.msg);
 				// TODO aggiorna le statistiche
 				slog(OPERATORE, "operatore.child.pid.%d.updating stats for services: %s", getpid(), msgBuff.payload.msg);
 
@@ -404,6 +404,8 @@ int main(int argc, char **argv)
 				{
 					slog(OPERATORE, "operatore.child.pid.%d.failed to update stats", getpid());
 				}
+
+				strcpy(msgBuff.payload.msg, OK);
 
 				if (msgsnd(serviceMsgqId, &msgBuff, sizeof(msgBuff) - sizeof(long), 0) == -1)
 				{

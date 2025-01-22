@@ -111,6 +111,7 @@ int main(int argc, char **argv)
 	}
 	if (pid == 0)
 	{ /* child code */
+		bool endOfDay = false;
 		slog(EROGATORE, "erogatore_ticket.child.pid.%d.waiting start of simulation", getpid());
 		while (1)
 		{
@@ -121,25 +122,30 @@ int main(int argc, char **argv)
 			}
 			if (strcmp(msgBuff.payload.msg, END_OF_DAY) == 0)
 			{
-				slog(EROGATORE, "erogatore_ticket.child.pid.%d.received: eod", getpid());
-				ticketRequest.ticket.eod = true;
-				ticketRequest.mtype = msgBuff.payload.senderPid;
-				if (msgsnd(ticketsMsgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), 0) == -1)
-				{
-					slog(EROGATORE, "erogatore_ticket.child.pid.%d.msgsnd.tickets msg queue.failed!", getpid());
-					err_exit(strerror(errno));
-				}
+				endOfDay = true;
 				continue;
 			}
 			else if (strcmp(msgBuff.payload.msg, START_OF_DAY) == 0)
 			{
 				slog(EROGATORE, "erogatore_ticket.child.pid.%d.received: sod", getpid());
+				endOfDay = false;
 				continue;
 			}
 			else if (strcmp(msgBuff.payload.msg, END_OF_SIMULATION) == 0)
 			{
 				break;
 			}
+
+			if (endOfDay){
+				ticketRequest.ticket.eod = true;
+				ticketRequest.mtype = msgBuff.payload.senderPid;
+				if (msgsnd(ticketsMsgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), 0) == -1){
+					slog(EROGATORE, "erogatore_ticket.child.pid.%d.failed to notify: eod", getpid());
+				}
+
+				continue;
+			}
+
 			ticketRequest.ticket.eod = false;
 			slog(EROGATORE, "erogatore_ticket.child.pid.%d.msgrcv.received ticket request for: %s from: %d", getpid(), msgBuff.payload.msg, msgBuff.payload.senderPid);
 			slog(EROGATORE, "erogatore_ticket.child.pid.%d.reserving sem for services shared memory...", getpid());
