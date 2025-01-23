@@ -15,21 +15,6 @@
 #include "msgapi.h"
 #include "simulation_configuration.h"
 
-void print_available_services(int argc, char **argv)
-{
-	printf("|Services|Timing|\n");
-	for (int i = 1; i < argc; i++)
-	{
-		printf("%9s%7d\n", argv[i], i);
-	}
-	printf("________________\n");
-}
-
-void usage()
-{
-	printf("Not enough arguments. i.e: ./erogatore_ticket [SHMID] [SEMID]\n");
-}
-
 int main(int argc, char **argv)
 {
 	int configurationSemId;
