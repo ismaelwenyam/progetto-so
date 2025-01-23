@@ -231,6 +231,7 @@ int main(int argc, char **argv)
 				continue;
 			}
 			slog(UTENTE, "utente.pid.%d.sent ticket request for %s", getpid(), servicesList[i]);
+			slog(UTENTE, "utente.pid.%d.waiting ticket for %s", getpid(), servicesList[i]);
 			if (msgrcv(ticketsMsgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), getpid(), 0) == -1)
 			{
 				slog(UTENTE, "utente.pid.%d.msgrcv.ticket request for service: %s.failed!", servicesList[i], getpid());
@@ -302,6 +303,8 @@ int main(int argc, char **argv)
 					 getpid(), sportello.workerDeskSemId, sportello.workerDeskSemun);
 				break;
 			}
+
+			// aggiorna explode.
 			if (strcmp(msgBuff.payload.msg, END_OF_DAY) == 0 || strcmp(msgBuff.payload.msg, "") == 0)
 			{
 				slog(UTENTE, "utente.pid.%d.received eod from operator.updating explode", getpid());
@@ -329,8 +332,6 @@ int main(int argc, char **argv)
 					err_exit(strerror(errno));
 				}
 				slog(UTENTE, "utente.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
-
-				// TODO aggiornare explode.
 				break;
 			}
 		}

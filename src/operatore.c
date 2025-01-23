@@ -23,6 +23,7 @@
 
 int main(int argc, char **argv)
 {
+	srand(time(NULL) + getpid());
 	int configurationSemId;
 	if ((configurationSemId = semget(CONFIGURATION_SEM_KEY, 0, 0)) == -1)
 	{
@@ -132,6 +133,7 @@ int main(int argc, char **argv)
 	int days = 0;
 	pid_t pid;
 	SportelloAdtPtr sportelliPtr;
+	slog(OPERATORE, "operatore.pid.%d.initialization completed", getpid());
 	pid = fork();
 	if (pid == -1)
 	{
@@ -285,6 +287,7 @@ int main(int argc, char **argv)
 				err_exit(strerror(errno));
 			}
 			slog(OPERATORE, "operatore.child.pid.%d.reserved.sportello.%d.semun.%d", getpid(), deskSemId, deskSemun);
+			
 			// un operatore attivo, operatore che lavora ad uno sportello che fornisce la sua mansione.
 			if (add_operator_to_gen_stat(statisticsShmId, statsShmSemId) == -1)
 			{
@@ -315,9 +318,9 @@ int main(int argc, char **argv)
 					err_exit(strerror(errno));
 				}
 				sportelliPtr[index].operatorPid = getpid();
-				sportelliPtr[index].deskAvailable = false;
+				sportelliPtr[index].deskAvailable = 0;
 				sportelliPtr[index].workerDeskSemId = utenteOperatoreSemId;
-				sportelliPtr[index].deskSemun = 0;
+				sportelliPtr[index].workerDeskSemun = 0;
 				if (release_sem(sportelliShmSemId, 0) == -1)
 				{
 					if (release_sem(operatoreSemId, 2) == -1)
@@ -339,6 +342,7 @@ int main(int argc, char **argv)
 			}
 			bool endOfDay = false;
 			bool inPause = false;
+			int takePause = 0;
 			while (1)
 			{
 				slog(OPERATORE, "operatore.child.pid.%d.waiting services requests", getpid());
@@ -382,6 +386,17 @@ int main(int argc, char **argv)
 					break;
 				}
 
+				if (inPause){
+					strcpy(msgBuff.payload.msg, PAUSE);
+					if (msgsnd(serviceMsgqId, &msgBuff, sizeof(msgBuff) - sizeof(long), 0) == -1)
+					{
+						slog(OPERATORE, "operatore.child.pid.%d.failed to respond to service request", getpid());
+						err_exit(strerror(errno));
+					}
+					// TODO servizio non fornito
+					continue;
+				}
+
 				if (endOfDay)
 				{
 					strcpy(msgBuff.payload.msg, END_OF_DAY);
@@ -406,6 +421,16 @@ int main(int argc, char **argv)
 					slog(OPERATORE, "operatore.child.pid.%d.failed to update stats", getpid());
 				}
 
+				if (update_waiting_time(statisticsShmId, statsShmSemId, msgBuff.payload.msg, msgBuff.payload.elapsed) == -1)
+				{
+					slog(OPERATORE, "operatore.child.%d.failed to update waiting time", getpid());
+				}
+
+				if (update_service_duration(statisticsShmId, statsShmSemId, msgBuff.payload.msg, msgBuff.payload.temp) == -1)
+				{
+					slog(OPERATORE, "operatore.child.pid.%d.failed to update duration time", getpid());
+				}
+
 				strcpy(msgBuff.payload.msg, OK);
 
 				if (msgsnd(serviceMsgqId, &msgBuff, sizeof(msgBuff) - sizeof(long), 0) == -1)
@@ -414,8 +439,9 @@ int main(int argc, char **argv)
 					err_exit(strerror(errno));
 				}
 
-
-				if (nofPause > 0)
+				takePause = rand() % 11;
+				slog(OPERATORE, "operatore.child.pid.%d.takePause: %d", takePause);
+				if (nofPause > 0 && takePause > 5)
 				{
 
 					// TODO notificare all'utente pause e aggiornare sportelli
@@ -439,7 +465,7 @@ int main(int argc, char **argv)
 					sportelliPtr[index].operatorPid = 0;
 					sportelliPtr[index].deskAvailable = true;
 					sportelliPtr[index].workerDeskSemId = 0;
-					sportelliPtr[index].deskSemun = 0;
+					sportelliPtr[index].workerDeskSemun = 0;
 					if (release_sem(sportelliShmSemId, 0) == -1)
 					{
 						if (release_sem(operatoreSemId, 2) == -1)
@@ -450,6 +476,14 @@ int main(int argc, char **argv)
 						slog(OPERATORE, "operatore.child.pid.%d.release_sem.services shm sem", getpid());
 						err_exit(strerror(errno));
 					}
+
+					if (release_sem(deskSemId, deskSemun) == -1)
+					{
+						slog(OPERATORE, "operatore.child.pid.%d.release_sem.deskSemId: %d - deskSemun: %d", getpid(), deskSemId, deskSemun);
+						err_exit(strerror(errno));
+					}
+					slog(OPERATORE, "operatore.child.pid.%d.released.sportello.%d.semun.%d", getpid(), deskSemId, deskSemun);
+					
 					if (shmdt(sportelliPtr) == -1)
 					{
 						slog(OPERATORE, "operatore.child.pid.%d.shmdt.failed!", getpid());
@@ -461,7 +495,6 @@ int main(int argc, char **argv)
 					{
 						slog(OPERATORE, "operatore.child.pid.%d.failed to update pause stats", getpid());
 					}
-					break;
 				}
 			}
 			if (release_sem(deskSemId, deskSemun) == -1)

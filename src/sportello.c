@@ -113,10 +113,45 @@ int main (int argc, char **argv) {
 			err_exit(strerror(errno));
 		}
 		slog(SPORTELLO, "sportello.pid.%d.release_sem.%d.semun.0", getpid(), sportelloSemId);
-		//TODO sistemare lo sportello di pertinenza
+
 		if (reserve_sem(sportelloSemId, 1) == -1){
 			slog(SPORTELLO, "sportello.pid.%d.reserve_sem.sportello_sem.failed", getpid());
 			err_exit(strerror(errno));
+		}
+
+		//sistemare lo sportello di pertinenza
+		slog(SPORTELLO, "sportello.pid.%d.reserving sem to update sportelli shm", getpid());
+		if (reserve_sem(sportelliShmSemId, 0) == -1){
+			slog(SPORTELLO, "sportello.pid.%d.reserve_sem.sportelli shm sem.failed!", getpid());
+			err_exit(strerror(errno));
+		}
+		slog(SPORTELLO, "sportello.pid.%d.reserved sem to update sportelli shm", getpid());
+		sportelliPtr = shmat(sportelliShmId, NULL, SHM_RND);
+		if (sportelliPtr == (void*) -1){
+			slog(SPORTELLO, "sportello.pid.%d.shmat.failed", getpid());
+			err_exit(strerror(errno));
+		}
+		slog(SPORTELLO, "sportello.pid.%d.updating sportelli shm...", getpid());
+		for (int i = 0; i < configuration.nofWorkerSeats; i++){
+			if (strcmp(sportelliPtr[i].serviceName, msgBuff.payload.msg) == 0 && sportelliPtr[i].sportelloPid == getpid()){
+				strcpy(sportelliPtr[i].serviceName, msgBuff.payload.msg);
+				sportelliPtr[i].deskAvailable = 1;
+				sportelliPtr[i].deskSemId = 0;
+				sportelliPtr[i].deskSemun = 0;
+				break;
+			}
+		}
+		slog(SPORTELLO, "sportello.pid.%d.updated sportello", getpid());
+		
+		if (release_sem(sportelliShmSemId, 0) == -1){
+			slog(SPORTELLO, "sportello.pid.%d.relase_sem.sportelli shm sem.failed!", getpid());
+			err_exit(strerror(errno));
+		}
+		slog(SPORTELLO, "sportello.pid.%d.released sem to update sportelli shm", getpid());
+		
+		if (shmdt(sportelliPtr) == -1){
+			slog(SPORTELLO, "sportello.pid.%d.shmdt.sportelli shm.failed!", getpid());
+			return -1;
 		}
 		
 		slog(SPORTELLO, "sportello.pid.%d.release_sem.%d.semun.2", getpid(), sportelloSemId);
