@@ -148,6 +148,11 @@ int main(int argc, char **argv)
 			// TODO estrae messaggio proveniente solo dal parent
 			if (msgrcv(serviceMsgqId, &msgBuff, sizeof(msgBuff) - sizeof(long), getpid(), 0) == -1)
 			{
+				if (errno == EIDRM)
+				{
+					release_sem(deskSemId, deskSemun);
+					exit(EXIT_SUCCESS);
+				}
 				slog(OPERATORE, "operatore.child.pid.%d.failed to receive message", getpid());
 				err_exit(strerror(errno));
 			}
@@ -287,7 +292,7 @@ int main(int argc, char **argv)
 				err_exit(strerror(errno));
 			}
 			slog(OPERATORE, "operatore.child.pid.%d.reserved.sportello.%d.semun.%d", getpid(), deskSemId, deskSemun);
-			
+
 			// un operatore attivo, operatore che lavora ad uno sportello che fornisce la sua mansione.
 			if (add_operator_to_gen_stat(statisticsShmId, statsShmSemId) == -1)
 			{
@@ -348,6 +353,11 @@ int main(int argc, char **argv)
 				slog(OPERATORE, "operatore.child.pid.%d.waiting services requests", getpid());
 				if (msgrcv(serviceMsgqId, &msgBuff, sizeof(msgBuff) - sizeof(long), getpid(), 0) == -1)
 				{
+					if (errno == EIDRM)
+					{
+						release_sem(deskSemId, deskSemun);
+						exit(EXIT_SUCCESS);
+					}
 					slog(OPERATORE, "operatore.child.pid.%d.msgrcv.service request.failed!", getpid());
 					if (release_sem(deskSemId, deskSemun) == -1)
 					{
@@ -370,7 +380,7 @@ int main(int argc, char **argv)
 						err_exit(strerror(errno));
 					}
 					slog(OPERATORE, "operatore.child.pid.%d.released.sportello.%d.semun.%d", getpid(), deskSemId, deskSemun);
-					
+
 					endOfDay = true;
 					continue;
 				}
@@ -386,7 +396,8 @@ int main(int argc, char **argv)
 					break;
 				}
 
-				if (inPause){
+				if (inPause)
+				{
 					strcpy(msgBuff.payload.msg, PAUSE);
 					if (msgsnd(serviceMsgqId, &msgBuff, sizeof(msgBuff) - sizeof(long), 0) == -1)
 					{
@@ -408,8 +419,6 @@ int main(int argc, char **argv)
 
 					continue;
 				}
-
-				
 
 				slog(OPERATORE, "operatore.child.pid.%d.received.service req from user: %d service: %s", getpid(), msgBuff.mtype, msgBuff.payload.msg);
 				// TODO aggiorna le statistiche
@@ -440,7 +449,7 @@ int main(int argc, char **argv)
 				}
 
 				takePause = rand() % 11;
-				slog(OPERATORE, "operatore.child.pid.%d.takePause: %d", takePause);
+				slog(OPERATORE, "operatore.child.pid.%d.takePause: %d",getpid(), takePause);
 				if (nofPause > 0 && takePause > 5)
 				{
 
@@ -483,7 +492,7 @@ int main(int argc, char **argv)
 						err_exit(strerror(errno));
 					}
 					slog(OPERATORE, "operatore.child.pid.%d.released.sportello.%d.semun.%d", getpid(), deskSemId, deskSemun);
-					
+
 					if (shmdt(sportelliPtr) == -1)
 					{
 						slog(OPERATORE, "operatore.child.pid.%d.shmdt.failed!", getpid());
@@ -506,10 +515,11 @@ int main(int argc, char **argv)
 		}
 		exit(EXIT_SUCCESS);
 	}
+
 	slog(OPERATORE, "operatore.pid.%d.completed initialization", getpid());
 	if (release_sem(operatoreSemId, 0) == -1)
 	{
-		slog(OPERATORE, "operatore.pid.%d.release_sem.operatore_sem.failed", getpid());
+		slog(OPERATORE, "operatore.pid.%d.release_sem.operatore sem(%d, 1)", getpid(), operatoreSemId);
 		err_exit(strerror(errno));
 	}
 
@@ -519,7 +529,11 @@ int main(int argc, char **argv)
 
 		if (reserve_sem(operatoreSemId, 1) == -1)
 		{
-			slog(OPERATORE, "operatore.pid.%d.release_sem.operatore_sem.failed", getpid());
+			if (errno == EIDRM){
+				delete_ipc_resources(utenteOperatoreSemId, "sem");
+				exit(EXIT_SUCCESS);
+			}
+			slog(OPERATORE, "operatore.pid.%d.reserve_sem.operatore_sem.failed", getpid());
 			err_exit(strerror(errno));
 		}
 
@@ -592,7 +606,7 @@ int main(int argc, char **argv)
 			wait(NULL);
 			if (release_sem(operatoreSemId, 4) == -1)
 			{
-				slog(OPERATORE, "operatore.pid.%d.release_sem.operatore sem", getpid());
+				slog(OPERATORE, "operatore.pid.%d.release_sem.operatore sem(%d, 4)", getpid(), operatoreSemId);
 				err_exit(strerror(errno));
 			}
 			break;
@@ -605,7 +619,7 @@ int main(int argc, char **argv)
 		slog(OPERATORE, "operatore.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
 		if (release_sem(operatoreSemId, 4) == -1)
 		{
-			slog(OPERATORE, "operatore.pid.%d.release_sem.operatore sem", getpid());
+			slog(OPERATORE, "operatore.pid.%d.release_sem.operatore sem(%d, 4)", getpid(), operatoreSemId);
 			err_exit(strerror(errno));
 		}
 		days++;

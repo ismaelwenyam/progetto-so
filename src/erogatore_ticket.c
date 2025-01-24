@@ -102,6 +102,10 @@ int main(int argc, char **argv)
 		{
 			if (msgrcv(ticketsMsgQueueId, &msgBuff, sizeof(msgBuff) - sizeof(long), EROGATORE_GROUP, 0) == -1)
 			{
+				if (errno == EIDRM)
+				{
+					exit(EXIT_SUCCESS);
+				}
 				slog(EROGATORE, "erogatore_ticket.child.pid.%d.msgrcv.tickets msg queue.failed!", getpid());
 				err_exit(strerror(errno));
 			}
@@ -121,10 +125,12 @@ int main(int argc, char **argv)
 				break;
 			}
 
-			if (endOfDay){
+			if (endOfDay)
+			{
 				ticketRequest.ticket.eod = true;
 				ticketRequest.mtype = msgBuff.payload.senderPid;
-				if (msgsnd(ticketsMsgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), 0) == -1){
+				if (msgsnd(ticketsMsgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), 0) == -1)
+				{
 					slog(EROGATORE, "erogatore_ticket.child.pid.%d.failed to notify: eod", getpid());
 				}
 
@@ -238,6 +244,11 @@ int main(int argc, char **argv)
 	{
 		if (reserve_sem(erogatoreSemId, 1) == -1)
 		{
+			if (errno == EIDRM)
+			{
+				release_sem(erogatoreSemId, 2) == -1;
+				exit(EXIT_SUCCESS);
+			}
 			slog(EROGATORE, "erogatore_ticket.pid.%d.reserve_sem.erogatore_sync_sem.semun.1.failed!", getpid());
 			err_exit(strerror(errno));
 		}

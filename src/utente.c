@@ -14,7 +14,8 @@
 #include "simulation_configuration.h"
 #include "simulation_stats.h"
 
-int sim_status(int configurationSemId, int simDuration, int explodeThreshold);
+int check_explode(int configurationSemId, int explodeThreshold);
+int check_timeout(int configurationSemId, int timeout);
 
 int main(int argc, char **argv)
 {
@@ -105,8 +106,27 @@ int main(int argc, char **argv)
 	}
 	while (1)
 	{
+
+		/*
+		if (check_explode(configurationSemId, configuration.explodeThreshold) == 1)
+		{
+			if (release_sem(utenteSemId, 2) == -1)
+			{
+				slog(UTENTE, "utente.pid.%d.utenteSem.release_sem(%d, 2).failed", getpid(), utenteSemId);
+				err_exit(strerror(errno));
+			}
+			slog(UTENTE, "utente.pid.%d.release_sem.utent_sem:%d.semun:2", getpid(), utenteSemId);
+			slog(UTENTE, "utente.%d.simulation over", getpid());
+			break;
+		}
+		*/
 		if (reserve_sem(utenteSemId, 1) == -1)
 		{
+			if (errno == EIDRM)
+			{
+				release_sem(utenteSemId, 2);
+				exit(EXIT_SUCCESS);
+			}
 			slog(UTENTE, "utente.pid.%d.utenteSem.reserve_sem(%d, 1).failed!", getpid(), utenteSemId);
 			err_exit(strerror(errno));
 		}
@@ -264,8 +284,7 @@ int main(int argc, char **argv)
 				break;
 				// TODO calcolare tempo di end e inserirlo nelle statistiche (tempo di attesa)
 			}
-			// TODO remove sleep
-			sleep(1);
+
 			// TODO calcolare tempo si start e inserirlo nelle statistiche (tenendo conto del parametro n_nano_secs) (tempo di attesa)
 			clock_gettime(CLOCK_MONOTONIC, &end);
 			elapsedTime = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
@@ -336,7 +355,7 @@ int main(int argc, char **argv)
 			}
 		}
 
-		if (sim_status(configurationSemId, configuration.simDuration, configuration.explodeThreshold) == 1)
+		if (check_timeout(configurationSemId, configuration.simDuration) == 1 || check_explode(configurationSemId, configuration.explodeThreshold) == 1)
 		{
 			if (release_sem(utenteSemId, 2) == -1)
 			{
@@ -360,7 +379,7 @@ int main(int argc, char **argv)
 	free(servicesList);
 }
 
-int sim_status(int configurationSemId, int simDuration, int explodeThreshold)
+int check_explode(int configurationSemId, int explodeThreshold)
 {
 	if (reserve_sem(configurationSemId, 1) == -1)
 	{
@@ -368,7 +387,34 @@ int sim_status(int configurationSemId, int simDuration, int explodeThreshold)
 		err_exit(strerror(errno));
 	}
 	slog(UTENTE, "utente.pid.%d.reserved config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
-	if (get_timeout(configurationSemId) >= simDuration || get_explode(configurationSemId) >= explodeThreshold)
+	if (get_explode(configurationSemId) >= explodeThreshold)
+	{
+		if (release_sem(configurationSemId, 1) == -1)
+		{
+			slog(UTENTE, "utente.pid.%d.failed to release config sem", getpid());
+			err_exit(strerror(errno));
+		}
+		slog(UTENTE, "utente.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+		return 1;
+	}
+	if (release_sem(configurationSemId, 1) == -1)
+	{
+		slog(UTENTE, "utente.pid.%d.failed to release config sem", getpid());
+		err_exit(strerror(errno));
+	}
+	slog(UTENTE, "utente.pid.%d.released config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+	return 0;
+}
+
+int check_timeout(int configurationSemId, int simDuration)
+{
+	if (reserve_sem(configurationSemId, 1) == -1)
+	{
+		slog(UTENTE, "utente.pid.%d.failed to reserve config sem", getpid());
+		err_exit(strerror(errno));
+	}
+	slog(UTENTE, "utente.pid.%d.reserved config sem.semdid: %d - semun: %d", getpid(), configurationSemId, 1);
+	if (get_timeout(configurationSemId) >= simDuration)
 	{
 		if (release_sem(configurationSemId, 1) == -1)
 		{

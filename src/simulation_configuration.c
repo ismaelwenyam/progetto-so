@@ -116,10 +116,10 @@ int reset_explode(int semId)
     FILE *configFile = fopen("config_explode.conf", "w");
     if (configFile == NULL)
     {
-        printf("error in opening config_timout file\n");
+        printf("error in opening config_explode file\n");
         return -1;
     }
-    fprintf(configFile, "%s %d\n", "timeout", 0);
+    fprintf(configFile, "%s %d\n", "explode", 0);
 
     fclose(configFile);
 

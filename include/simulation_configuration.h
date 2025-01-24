@@ -13,8 +13,6 @@ struct configuration {
 	int explodeThreshold;
 	int nRequests;
 	int nNewUsers;
-	int timeout;
-	int explode;
 };
 
 

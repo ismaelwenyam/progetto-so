@@ -67,6 +67,7 @@ int main (int argc, char **argv) {
 			slog(SPORTELLO, "sportello.pid.%d.msgsnd.failed to request role for day: %d", getpid(), days+1);
 			err_exit(strerror(errno));
 		}
+		slog(SPORTELLO, "sportello.pid.%d.sent request of role", getpid());
 		if (msgrcv(dirMsgQueueId, &msgBuff, sizeof(msgBuff) - sizeof(long), getpid(), 0) == -1){
 			slog(SPORTELLO, "sportello.pid.%d.msgrcv.failed to receive role for day", getpid());
 			err_exit(strerror(errno));
@@ -187,6 +188,5 @@ int main (int argc, char **argv) {
 	slog(SPORTELLO, "sportello.pid.%d.delete ipc resources", getpid());
 	delete_ipc_resources(operatoreSportelloSemId, "sem"); 	
 	slog(SPORTELLO, "sportello.pid.%d.deleted ipc resources", getpid());
-	
-	
+	exit(EXIT_SUCCESS);
 }
