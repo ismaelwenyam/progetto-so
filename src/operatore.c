@@ -447,6 +447,7 @@ int main(int argc, char **argv)
 					slog(OPERATORE, "operatore.child.pid.%d.failed to respond to service request", getpid());
 					err_exit(strerror(errno));
 				}
+				
 
 				takePause = rand() % 11;
 				slog(OPERATORE, "operatore.child.pid.%d.takePause: %d",getpid(), takePause);

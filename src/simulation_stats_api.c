@@ -262,9 +262,12 @@ int update_service_stat (int shmId, int semId, char *service, int serviceProvide
 	for (int i = 0; i < SERVICES; i++){
 		if (strcmp(statisticsPtr->services[i].serviceType, service) == 0){
 			if (serviceProvided){
+				statisticsPtr->services[i].averageDailyServicesProvided += 1;
 				statisticsPtr->services[i].totalServicesProvided += 1;	
 			}else{
+				statisticsPtr->services[i].averageDailyServicesNotProvided += 1;
 				statisticsPtr->services[i].totalServicesNotProvided += 1;	
+
 			}
 			break;	
 		}	
