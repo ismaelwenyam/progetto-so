@@ -141,7 +141,7 @@ int update_explode(int semId, int count)
         err_exit(strerror(errno));
     }
 
-    FILE *configFile = fopen("config_explode.conf", "r+"); // Apertura in modalità lettura e scrittura
+    FILE *configFile = fopen("config_explode.conf", "r+");
     if (configFile == NULL)
     {
         printf("error in opening config_explode file\n");
@@ -167,16 +167,13 @@ int update_explode(int semId, int count)
             fclose(configFile);
             return -1;
         }
-        explode = atoi(value); // Aggiorna il valore di explode
+        explode = atoi(value);
     }
 
-    // Libera il buffer di getline
     free(line);
 
-    // Riporta il puntatore del file all'inizio per sovrascrivere
     rewind(configFile);
 
-    // Scrive il nuovo valore
     fprintf(configFile, "explode %d\n", explode + count);
 
     fclose(configFile);
@@ -193,7 +190,6 @@ int get_timeout(int semId)
 {
     printf("start get_timeout\n");
 
-    // Riserva il semaforo
     if (reserve_sem(semId, 0) == -1)
     {
         fprintf(stderr, "Error reserving config sem: %s\n", strerror(errno));
@@ -201,17 +197,14 @@ int get_timeout(int semId)
     }
     printf("Reserved config sem. semid: %d - semun: 0\n", semId);
 
-    // Apri il file di configurazione
     FILE *configFile = fopen("config_timout.conf", "r");
     if (configFile == NULL)
     {
         fprintf(stderr, "Error opening config_timeout file: %s\n", strerror(errno));
-        release_sem(semId, 0); // Rilascia il semaforo prima di uscire
-        return -1;
+        release_sem(semId, 0); 
     }
     printf("Opened config_timeout file\n");
 
-    // Leggi il file riga per riga con getline
     int timeout = 0;
     char *line = NULL;
     size_t len = 0;
@@ -224,7 +217,6 @@ int get_timeout(int semId)
         printf("Read line: '%s'\n", line);
         lineNum++;
 
-        // Ignora le righe che iniziano con #
         if (line[0] == '#')
             continue;
 
@@ -242,10 +234,8 @@ int get_timeout(int semId)
         printf("Parsed timeout: %d\n", timeout);
     }
 
-    // Libera la memoria allocata da getline
     free(line);
 
-    // Chiudi il file
     if (fclose(configFile) != 0)
     {
         fprintf(stderr, "Error closing config file: %s\n", strerror(errno));
@@ -253,7 +243,6 @@ int get_timeout(int semId)
         err_exit("Failed to close configuration file");
     }
 
-    // Rilascia il semaforo
     if (release_sem(semId, 0) == -1)
     {
         fprintf(stderr, "Error releasing config sem: %s\n", strerror(errno));
@@ -268,7 +257,6 @@ int get_timeout(int semId)
 int get_explode(int semId)
 {
     printf("Start get_explode\n");
-    // Riserva il semaforo
     if (reserve_sem(semId, 0) == -1)
     {
         fprintf(stderr, "Error reserving config sem: %s\n", strerror(errno));
@@ -276,17 +264,15 @@ int get_explode(int semId)
     }
     printf("Reserved config sem. semid: %d - semun: 0\n", semId);
 
-    // Apri il file di configurazione
     FILE *configFile = fopen("config_explode.conf", "r");
     if (configFile == NULL)
     {
         fprintf(stderr, "Error opening config_timeout file: %s\n", strerror(errno));
-        release_sem(semId, 0); // Rilascia il semaforo prima di uscire
+        release_sem(semId, 0); 
         return -1;
     }
     printf("Opened config_explode file\n");
 
-    // Leggi il file riga per riga con getline
     int explode = 0;
     char *line = NULL;
     size_t len = 0;
@@ -299,7 +285,6 @@ int get_explode(int semId)
         printf("Read line: '%s'\n", line);
         lineNum++;
 
-        // Ignora le righe che iniziano con #
         if (line[0] == '#')
             continue;
 
@@ -317,10 +302,8 @@ int get_explode(int semId)
         printf("Parsed explode: %d\n", explode);
     }
 
-    // Libera la memoria allocata da getline
     free(line);
 
-    // Chiudi il file
     if (fclose(configFile) != 0)
     {
         fprintf(stderr, "Error closing config file: %s\n", strerror(errno));
@@ -328,7 +311,6 @@ int get_explode(int semId)
         err_exit("Failed to close configuration file");
     }
 
-    // Rilascia il semaforo
     if (release_sem(semId, 0) == -1)
     {
         fprintf(stderr, "Error releasing config sem: %s\n", strerror(errno));

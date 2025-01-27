@@ -59,7 +59,6 @@ int main (int argc, char **argv) {
 	SportelloAdtPtr sportelliPtr;
 	while (1){
 		
-		//slog(SPORTELLO, "sportello.pid.%d.requesting role for day %d", getpid(), days+1);
 		msgBuff.mtype = SPORTELLO_GROUP;
 		msgBuff.payload.senderPid = getpid();
 		strcpy(msgBuff.payload.msg, ROLE);
@@ -120,7 +119,6 @@ int main (int argc, char **argv) {
 			err_exit(strerror(errno));
 		}
 
-		//sistemare lo sportello di pertinenza
 		slog(SPORTELLO, "sportello.pid.%d.reserving sem to update sportelli shm", getpid());
 		if (reserve_sem(sportelliShmSemId, 0) == -1){
 			slog(SPORTELLO, "sportello.pid.%d.reserve_sem.sportelli shm sem.failed!", getpid());

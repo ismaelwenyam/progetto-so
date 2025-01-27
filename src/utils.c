@@ -11,7 +11,6 @@
 
 
 void print_services_in_shm (int shmId, int semId){
-	//printf("start print_services_in_shm\n");
 	if (reserve_sem(semId, 0) == -1){
 		printf("error in reserving sem\n");
 		err_exit(strerror(errno));
@@ -36,11 +35,9 @@ void print_services_in_shm (int shmId, int semId){
 		printf("error in shmdt\n");
 		err_exit(strerror(errno));
 	}
-	//printf("end print_services_in_shm\n");
 }
 
 void print_sportelli_in_shm (int shmId, int semId, int nofWorkerSeats){
-	//printf("start print_sportelli_in_shm\n");
 	if (reserve_sem(semId, 0) == -1){
 		printf("error in reserving sem\n");
 		err_exit(strerror(errno));
@@ -65,7 +62,6 @@ void print_sportelli_in_shm (int shmId, int semId, int nofWorkerSeats){
 		printf("error in shmdt\n");
 		err_exit(strerror(errno));
 	}
-	//printf("end print_sportelli_in_shm\n");
 }
 
 

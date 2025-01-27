@@ -83,7 +83,6 @@ int main(int argc, char **argv)
 		err_exit(strerror(errno));
 	}
 
-	// TODO replace with params from config
 	if (create_stats_file("./daily_stats.csv", "./extra_daily_stats.csv", "./operator_ratio.csv", "./total_stats.csv", "./extra_total_stats.csv") == -1)
 	{
 		slog(DIRETTORE, "direttore.pid.%d.failed to create csv stats file", getpid());
@@ -371,7 +370,6 @@ int main(int argc, char **argv)
 	int users = configuration.nofUsers;
 	SportelloAdtPtr sportelliPtr;
 	ServizioAdtPtr servicesPtr;
-	// StatisticsAdt statisticsPtr;
 	SportelloStatAdtPtr sportelliStatsPtr;
 	struct timespec ts;
 	ts.tv_sec = 0;
@@ -385,7 +383,6 @@ int main(int argc, char **argv)
 			err_exit(strerror(errno));
 		}
 
-		// TODO decidere quali servizi rendere disponibile per il giorno i
 		servicesPtr = shmat(servicesShmId, NULL, SHM_RND);
 		if (servicesPtr == (void *)-1)
 		{
@@ -590,7 +587,7 @@ int main(int argc, char **argv)
 		}
 		slog(DIRETTORE, "direttore.pid.%d.released config sem.semid: %d - semun: 1", getpid(), configurationSemId);
 
-		// allow erogatore to kill its child
+		// allow erogatore to notify its child
 		if (release_sem(erogatoreSemId, 3) == -1)
 		{
 			slog(DIRETTORE, "direttore.pid.%d.release_sem.erogatore sem.failed!", getpid());
@@ -723,7 +720,6 @@ int main(int argc, char **argv)
 
 		days++;
 	}
-	// TODO remove for gentle resources cancellation
 	dump_total_stats("./total_stats.csv", "./extra_total_stats.csv", statisticsShmId, statsShmSemId);
 	slog(DIRETTORE, "direttore.pid.%d.removing ipc resources", getpid());
 	delete_ipc_resources(resourceCreationSemId, "sem");
@@ -787,7 +783,6 @@ void create_sportello(int nofWorkerSeats)
 		pid = fork();
 		if (pid == -1)
 		{
-			// TODO continuare o stoppare l'intera simulazione?
 			slog(DIRETTORE, "direttore.pid.%d.create_sportello.fork.failed!.interupting simulation", getpid());
 			err_exit(strerror(errno));
 		}
@@ -798,7 +793,6 @@ void create_sportello(int nofWorkerSeats)
 			char *const env[] = {NULL};
 			if (execve("./sportello", argv, env) == -1)
 			{
-				// TODO continuare o stoppare l'intera simulazione?
 				slog(DIRETTORE, "direttore.child.pid.%d.create_sportello.execve.failed!", getpid());
 				err_exit(strerror(errno));
 			}
@@ -819,7 +813,6 @@ void create_operatore(int nofWorkers)
 		pid = fork();
 		if (pid == -1)
 		{
-			// TODO continuare o stoppare l'intera simulazione?
 			slog(DIRETTORE, "direttore.pid.%d.create_operatore.fork.failed!.interupting simulation", getpid());
 			err_exit(strerror(errno));
 		}
@@ -830,7 +823,6 @@ void create_operatore(int nofWorkers)
 			char *const env[] = {NULL};
 			if (execve("./operatore", argv, env) == -1)
 			{
-				// TODO continuare o stoppare l'intera simulazione?
 				slog(DIRETTORE, "direttore.child.pid.%d.operatore.execve.failed!", getpid());
 				err_exit(strerror(errno));
 			}
@@ -851,7 +843,6 @@ void create_utente(int nofUsers)
 		pid = fork();
 		if (pid == -1)
 		{
-			// TODO continuare o stoppare l'intera simulazione?
 			slog(DIRETTORE, "direttore.pid.%d.create_utente.fork.failed!.interupting simulation", getpid());
 			err_exit(strerror(errno));
 		}
@@ -862,7 +853,6 @@ void create_utente(int nofUsers)
 			char *const env[] = {NULL};
 			if (execve("./utente", argv, env) == -1)
 			{
-				// TODO continuare o stoppare l'intera simulazione?
 				slog(DIRETTORE, "direttore.child.pid.%d.utente.execve.failed!", getpid());
 				err_exit(strerror(errno));
 			}

@@ -29,7 +29,6 @@ int main(int argc, char **argv)
 		err_exit(strerror(errno));
 	}
 	ConfigurationAdt configuration = get_config();
-	// char *services[] = {IRP, ILR, PVB, PBP, APF, AOB};
 	int resourceCreationSemId, utenteSemId, ticketsMsgQueueId, serviceMsgqId;
 	int servicesShmSemId, servicesShmId;
 	if ((resourceCreationSemId = semget(RESOURCE_CREATION_SYNC_SEM_KEY, 0, 0)) == -1)
@@ -106,20 +105,6 @@ int main(int argc, char **argv)
 	}
 	while (1)
 	{
-
-		/*
-		if (check_explode(configurationSemId, configuration.explodeThreshold) == 1)
-		{
-			if (release_sem(utenteSemId, 2) == -1)
-			{
-				slog(UTENTE, "utente.pid.%d.utenteSem.release_sem(%d, 2).failed", getpid(), utenteSemId);
-				err_exit(strerror(errno));
-			}
-			slog(UTENTE, "utente.pid.%d.release_sem.utent_sem:%d.semun:2", getpid(), utenteSemId);
-			slog(UTENTE, "utente.%d.simulation over", getpid());
-			break;
-		}
-		*/
 		if (reserve_sem(utenteSemId, 1) == -1)
 		{
 			if (errno == EIDRM)
@@ -233,7 +218,6 @@ int main(int argc, char **argv)
 		{
 			slog(UTENTE, "index: %d - %s", i, servicesList[i]);
 		}
-		// TODO stabilire orario in cui recarsi all'ufficio postale
 
 		// richiedere tickets per i servizi
 		for (int i = 0; i < requests; i++)
@@ -284,7 +268,6 @@ int main(int argc, char **argv)
 				continue;
 			}
 			// Il tempo di erogazione del servizio viene calcolato dal momento in cui l'utente si mette in fila.
-			// TODO calcolare tempo si start e inserirlo nelle statistiche (tenendo conto del parametro n_nano_secs) (tempo di attesa) - citare CHATGPT
 			clock_gettime(CLOCK_MONOTONIC, &start);
 			if (reserve_sem(sportello.workerDeskSemId, sportello.workerDeskSemun) == -1)
 			{
@@ -292,15 +275,12 @@ int main(int argc, char **argv)
 					 "utente.pid.%d.couldn't get in queue of sportello(operatore sem).semid.%d.semun.%d",
 					 getpid(), sportello.workerDeskSemId, sportello.workerDeskSemun);
 				break;
-				// TODO calcolare tempo di end e inserirlo nelle statistiche (tempo di attesa)
 			}
 
-			// TODO calcolare tempo si start e inserirlo nelle statistiche (tenendo conto del parametro n_nano_secs) (tempo di attesa)
 			clock_gettime(CLOCK_MONOTONIC, &end);
 			elapsedTime = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
 			slog(UTENTE, "utente.pid.%d.elapsed time: %.2ld", getpid(), elapsedTime);
 			slog(UTENTE, "utente.pid.%d.reserve_sem.%d.semun.%d", getpid(), sportello.workerDeskSemId, sportello.workerDeskSemun);
-			// TODO calcolare tempo di end e inserirlo nelle statistiche (tempo di attesa)
 			msgBuff.mtype = sportello.operatorPid;
 			msgBuff.payload.senderPid = getpid();
 			strcpy(msgBuff.payload.msg, servicesList[i]);
@@ -329,7 +309,6 @@ int main(int argc, char **argv)
 				}
 			}
 
-			// TODO attende il tempario
 			if (release_sem(sportello.workerDeskSemId, sportello.workerDeskSemun) == -1)
 			{
 				slog(UTENTE,
@@ -389,7 +368,6 @@ int main(int argc, char **argv)
 		}
 		days++;
 	}
-	// slog(UTENTE, "utente.%d.simulation over", getpid());
 	// TODO also free in errors
 	free(servicesList);
 }

@@ -145,7 +145,6 @@ int main(int argc, char **argv)
 		bool endOfSimulation = false;
 		while (!endOfSimulation)
 		{
-			// TODO estrae messaggio proveniente solo dal parent
 			if (msgrcv(serviceMsgqId, &msgBuff, sizeof(msgBuff) - sizeof(long), getpid(), 0) == -1)
 			{
 				if (errno == EIDRM)
@@ -198,7 +197,6 @@ int main(int argc, char **argv)
 			{
 				if (strcmp(sportelliPtr[i].serviceName, role) != 0)
 					continue;
-				// TODO migliorare la scelta dello sportello
 				sportelloFound = true;
 				if (sportelliPtr[i].deskAvailable)
 				{
@@ -233,7 +231,6 @@ int main(int argc, char **argv)
 
 				slog(OPERATORE, "operatore.child.pid.%d.updating stats...", getpid());
 				slog(OPERATORE, "operatore.child.pid.%d.release_sem.sportelli_shm_sem", getpid());
-				// TODO notify parent, that child returns to start of day
 				continue;
 			}
 			slog(OPERATORE, "operatore.child.pid.%d.sportello: %d available: %s", getpid(), deskSemId, sportelloTaken ? "true" : "false");
@@ -247,7 +244,7 @@ int main(int argc, char **argv)
 				slog(OPERATORE, "operatore.child.pid.%d.release_sem.services shm sem", getpid());
 				err_exit(strerror(errno));
 			}
-			// TODO aggiorna ratio operatore sportello
+			// aggiorna ratio operatore sportello
 			if (update_operator_seat_ratio(sportelliStatShmId, sportelliStatShmSemId, role, configuration.nofWorkerSeats) == -1)
 			{
 				slog(OPERATORE, "operatore.child.pid.%d.failed to update sportelli stats", getpid());
@@ -421,7 +418,6 @@ int main(int argc, char **argv)
 				}
 
 				slog(OPERATORE, "operatore.child.pid.%d.received.service req from user: %d service: %s", getpid(), msgBuff.mtype, msgBuff.payload.msg);
-				// TODO aggiorna le statistiche
 				slog(OPERATORE, "operatore.child.pid.%d.updating stats for services: %s", getpid(), msgBuff.payload.msg);
 
 				// TODO criticita se il numero di utenti dovesse crescere? chiedere al direttore
