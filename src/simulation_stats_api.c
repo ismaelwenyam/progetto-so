@@ -24,7 +24,6 @@ int init_statistics (int shmId, int semId, const char **services){
 	statisticsPtr->activeOperatorsSimulation = 0;
 	statisticsPtr->averageBreaksDaily = 0.0;
 	statisticsPtr->totalBreaksSimulation = 0;
-	//TODO inizializzare le statistiche per servizio
 	for (int i = 0; i < SERVICES; i++){
 		strcpy(statisticsPtr->services[i].serviceType, services[i]);	
 		statisticsPtr->services[i].totalUsersServed = 0;
@@ -87,7 +86,6 @@ int print_stats (int shmId, int semId, int ssshmId, int sssemId, int day, int no
 						statisticsPtr->services[i].averageDailyServicesProvided, 
 						statisticsPtr->services[i].averageDailyServicesNotProvided,
 						statisticsPtr->services[i].averageWaitingTimeDaily,
-						/*statisticsPtr->services[i].usersServedDaily == 0 ? 0 : statisticsPtr->services[i].waitingTimeDaily/(float)statisticsPtr->services[i].usersServedDaily,*/
 						statisticsPtr->services[i].averageServiceDurationDaily);
 	}
 	puts("");
@@ -176,10 +174,8 @@ int reset_statistics (int shmId, int semId){
 		statisticsPtr->services[i].averageWaitingTimeDaily = 0.0;
 		statisticsPtr->services[i].averageServiceDurationDaily = 0.0;
 		statisticsPtr->services[i].usersServedDaily = 0;
-		//Not to be printed
 
 	}
-	//TODO inizializzare le statistiche per servizio
 	//release semaforo accesso statistiche
 	if (release_sem(semId, 0) == -1){
 		printf("failed to release stats shm sem\n");
@@ -231,7 +227,6 @@ int add_operator_to_gen_stat (int shmId, int semId){
 		return -1;
 	}
 	statisticsPtr->totalBreaksSimulation += 1;
-	//numero medio di pause nella giornata
 	statisticsPtr->averageBreaksDaily += 1 / (float)statisticsPtr->activeOperatorsDaily;
 	if (release_sem(semId, 0) == -1){
 		printf("failed to release stats shm sem\n");

@@ -373,6 +373,9 @@ int main(int argc, char **argv)
 	ServizioAdtPtr servicesPtr;
 	// StatisticsAdt statisticsPtr;
 	SportelloStatAdtPtr sportelliStatsPtr;
+	struct timespec ts;
+	ts.tv_sec = 0;
+	ts.tv_nsec = configuration.nNanoSecs * 60 * 8;
 	while (days < configuration.simDuration)
 	{
 		slog(DIRETTORE, "direttore.pid.%d.day: %d", getpid(), days + 1);
@@ -572,7 +575,7 @@ int main(int argc, char **argv)
 		}
 
 		slog(DIRETTORE, "direttore.pid.%d.sleeping 10s...", getpid());
-		sleep(1);
+		nanosleep(&ts, NULL);
 		slog(DIRETTORE, "direttore.pid.%d.wake up", getpid());
 		if (update_timeout(configurationSemId, days + 1) == -1)
 		{

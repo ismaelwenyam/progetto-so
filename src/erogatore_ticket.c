@@ -14,6 +14,7 @@
 #include "shmapi.h"
 #include "msgapi.h"
 #include "simulation_configuration.h"
+#include "utils_api.h"
 
 int main(int argc, char **argv)
 {
@@ -318,5 +319,6 @@ int main(int argc, char **argv)
 		}
 		days++;
 	}
+	delete_ipc_resources(ticketsMsgQueueId, "msg");
 	slog(EROGATORE, "erogatore_ticket.pid.%d.tickets msg queue.removed!", getpid());
 }

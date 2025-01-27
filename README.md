@@ -36,5 +36,40 @@ progetto-so/
     └── utils.c
 ```
 
-# Direttore
+# How to run simulation
+
+### Generate executables
+
+Place yourself in the working directory of the project and run
+```plaintext
+make
+```
+This will generate executables.
+
+### Edit simulation parameters
+
+You can edit the simulation parameters in simulation_configuration.conf file, by using the script edit_config.sh which will help you doing so avoiding formatting errors.
+Just run
+```plaintext
+./edit_config.sh
+```
+
+### Run simulation
+In order to start the simulation you can either run
+```plaintext
+./direttore
+```
+or use the simulation runner, which guides you in the process of running the simulation, just run
+```plaintext
+./sim_runner.sh
+```
+
+### Clean directory
+In order to clean the directory just run
+```plaintext
+make clean
+```
+This command will remove the executables files and object files, but also the csv files.
+
+
 

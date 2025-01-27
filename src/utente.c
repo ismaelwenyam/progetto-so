@@ -76,7 +76,7 @@ int main(int argc, char **argv)
 	}
 
 	int days = 0;
-	int range, pServ;
+	int range, pServ, pServMin = configuration.pServMin;
 	int nRequests = configuration.nRequests, requests;
 	if (nRequests > NUMBER_OF_SERVICES)
 	{
@@ -131,8 +131,12 @@ int main(int argc, char **argv)
 			err_exit(strerror(errno));
 		}
 		slog(UTENTE, "utente.pid.%d.day: %d", getpid(), days + 1);
-		range = (configuration.pServMin + configuration.pServMax) / 2 - 1;
-		pServ = configuration.pServMin + rand() % (configuration.pServMax - configuration.pServMin);
+		if (pServMin >= configuration.pServMax)
+		{
+			pServMin = configuration.pServMax - 1;
+		}
+		range = (pServMin + configuration.pServMax) / 2 - 1;
+		pServ = pServMin + rand() % (configuration.pServMax - pServMin);
 		slog(UTENTE, "utente.pid.%d.pserv:%d", getpid(), pServ);
 		if (pServ < range)
 		{
@@ -245,7 +249,8 @@ int main(int argc, char **argv)
 				if (errno == EIDRM)
 				{
 					slog(UTENTE, "utente.pid.%d.tickets msg queue removed.exiting", getpid());
-					err_exit(strerror(errno));
+					release_sem(utenteSemId, 2);
+					exit(EXIT_SUCCESS);
 				}
 				slog(UTENTE, "utente.pid.%d.proceding to request next service ticket", getpid());
 				continue;
@@ -254,6 +259,11 @@ int main(int argc, char **argv)
 			slog(UTENTE, "utente.pid.%d.waiting ticket for %s", getpid(), servicesList[i]);
 			if (msgrcv(ticketsMsgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), getpid(), 0) == -1)
 			{
+				if (errno == EIDRM) {
+					slog(UTENTE, "utente.pid.%d.tickets msg queue removed.exiting", getpid());
+					release_sem(utenteSemId, 2);
+					exit(EXIT_SUCCESS);
+				}
 				slog(UTENTE, "utente.pid.%d.msgrcv.ticket request for service: %s.failed!", servicesList[i], getpid());
 				continue;
 			}
@@ -309,6 +319,11 @@ int main(int argc, char **argv)
 				slog(UTENTE, "utente.pid.%d.waiting response from operatore.pid.%d", getpid(), sportello.operatorPid);
 				if (msgrcv(serviceMsgqId, &msgBuff, sizeof(msgBuff) - sizeof(long), getpid(), 0) == -1)
 				{
+					if (errno == EIDRM){
+						release_sem(sportello.workerDeskSemId, sportello.workerDeskSemun);
+						release_sem(utenteSemId, 2);
+						exit(EXIT_SUCCESS);
+					}
 					slog(UTENTE, "utente.pid.%d.failed to receive confirm from operator: %d", getpid(), sportello.operatorPid);
 					err_exit(strerror(errno));
 				}
