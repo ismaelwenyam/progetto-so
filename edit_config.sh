@@ -10,7 +10,7 @@ fi
 
 # Funzione per mostrare i parametri attuali
 show_config() {
-    echo "\nParametri attuali:"
+    echo "Parametri attuali:"
     cat "$CONFIG_FILE"
     echo
 }

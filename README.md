@@ -41,6 +41,17 @@ In order to start the simulation you can either use the simulation runner, which
 ```plaintext
 ./sim_runner.sh
 ```
+You will be showed this window where you can choose the actions to do.
+```plaintext
+Menu principale:
+1. Eseguire la build
+2. Eseguire la clean
+3. Modificare i parametri di configurazione
+4. Avviare la simulazione
+5. Avviare la simulazione - verbose
+6. Esci
+Seleziona un'opzione: 
+```
 
 # Manual 
 ### Generate executables

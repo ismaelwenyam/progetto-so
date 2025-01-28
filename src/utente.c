@@ -89,6 +89,14 @@ int main(int argc, char **argv)
 		slog(UTENTE, "utente.pid.%d.malloc.failed", getpid());
 		err_exit(strerror(errno));
 	}
+	for (int i = 0; i < nRequests; i++)
+	{
+		servicesList[i] = (char *)malloc(SERVICE_LEN * sizeof(char));
+		if (servicesList[i] == NULL)
+		{
+			slog(UTENTE, "utente.pid.%d.failed to allocate mem for service", getpid());
+		} 
+	}
 	TicketRequestAdt ticketRequest;
 	TicketAdt ticket;
 	MsgBuff msgBuff;
@@ -166,7 +174,6 @@ int main(int argc, char **argv)
 			continue;
 		}
 		slog(UTENTE, "utente.pid.%d.going to post office", getpid());
-
 		if (reserve_sem(servicesShmSemId, 0) == -1)
 		{
 			slog(UTENTE, "utente.pid.%d.reserve_sem.services shm sem.failed!", getpid());
@@ -187,10 +194,9 @@ int main(int argc, char **argv)
 		for (int i = 0, j = 0; i < requests; i++)
 		{
 			int serviceChoice = rand() % NUMBER_OF_SERVICES;
-			printf("test i: %d - j: %d user - serviceChoice: %d - service: %s\n", i, j, serviceChoice, servicesPtr[serviceChoice].name);
 			if (servicesPtr[serviceChoice].available)
 			{
-				printf("added: %s\n", strcpy(servicesList[j], servicesPtr[serviceChoice].name));
+				strcpy(servicesList[j], servicesPtr[serviceChoice].name);
 				j++;
 			}
 			else
@@ -199,7 +205,6 @@ int main(int argc, char **argv)
 				notAvailableServicesCount += 1;
 			}
 		}
-		printf("not available services count : %d\n", notAvailableServicesCount);
 		requests -= notAvailableServicesCount;
 		if (release_sem(servicesShmSemId, 0) == -1)
 		{
@@ -226,7 +231,6 @@ int main(int argc, char **argv)
 			msgBuff.payload.senderPid = getpid();
 			strcpy(msgBuff.payload.msg, servicesList[i]);
 			slog(UTENTE, "utente.pid.%d.sending ticket request for %s...", getpid(), servicesList[i]);
-
 			if (msgsnd(ticketsMsgQueueId, &msgBuff, sizeof(msgBuff) - sizeof(long), 0) == -1)
 			{
 				slog(UTENTE, "utente.pid.%d.msgsnd.ticket request.failed!", getpid());
@@ -369,6 +373,9 @@ int main(int argc, char **argv)
 		days++;
 	}
 	// TODO also free in errors
+	for (int i = 0; i < nRequests; i++){
+		free(servicesList[i]);
+	}
 	free(servicesList);
 }
 

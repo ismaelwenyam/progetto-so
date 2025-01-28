@@ -25,18 +25,27 @@ edit_config() {
 
 # Funzione per avviare la simulazione
 run_simulation() {
+    run_clean
     echo "Eseguendo la build e avviando la simulazione..."
     make && ./direttore
 }
 
+# Funzione per avviare la simulazione con logs
+run_simulation_verbose() {
+    run_clean
+    echo "Eseguendo la build e avviando la simulazione con logs..."
+    make debug && ./direttore
+}
+
 # Menu principale
 while true; do
-    echo "\nMenu principale:"
+    echo "Menu principale:"
     echo "1. Eseguire la build"
     echo "2. Eseguire la clean"
     echo "3. Modificare i parametri di configurazione"
     echo "4. Avviare la simulazione"
-    echo "5. Esci"
+    echo "5. Avviare la simulazione - verbose"
+    echo "6. Esci"
     read -p "Seleziona un'opzione: " choice
 
     case $choice in
@@ -53,6 +62,9 @@ while true; do
             run_simulation
             ;;
         5)
+            run_simulation_verbose
+            ;;
+        6)
             clear
             exit 0
             ;;

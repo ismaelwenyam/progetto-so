@@ -7,7 +7,6 @@
 #include "shmapi.h"
 
 int init_statistics (int shmId, int semId, const char **services){
-	printf("start init_statistics\n");
 	//reserve semaforo per accesso ad shm statistiche
 	if (reserve_sem(semId, 0) == -1){
 		printf("failed to stats shm sem\n");
@@ -48,7 +47,6 @@ int init_statistics (int shmId, int semId, const char **services){
 		printf("failed to detach stats shm\n");
 		return -1;
 	}
-	printf("end init_statistics\n");
 	return 0;
 }
 
@@ -152,7 +150,6 @@ int print_stats (int shmId, int semId, int ssshmId, int sssemId, int day, int no
 }
 
 int reset_statistics (int shmId, int semId){
-	printf("start reset_statistics\n");
 	//reserve semaforo per accesso ad shm statistiche
 	if (reserve_sem(semId, 0) == -1){
 		printf("failed to reserve stats shm sem\n");
@@ -186,13 +183,11 @@ int reset_statistics (int shmId, int semId){
 		printf("failed to detach stats shm\n");
 		return -1;
 	}
-	printf("end reset_statistics\n");
 	return 0;
 }
 
 
 int add_operator_to_gen_stat (int shmId, int semId){
-	printf("start add_operator_to_gen_stat\n");	
 	if (reserve_sem(semId, 0) == -1){
 		printf("failed to reserve stats shm sem\n");
 		return -1;
@@ -212,11 +207,9 @@ int add_operator_to_gen_stat (int shmId, int semId){
 		printf("failed to detach stats shm\n");
 		return -1;
 	}
-	printf("end add_operator_to_gen_stat\n");	
 	return 0;
 }
  int add_pause_stat (int shmId, int semId){
-	printf("start add_pause_to_gen_stat\n");	
 	if (reserve_sem(semId, 0) == -1){
 		printf("failed to reserve stats shm sem\n");
 		return -1;
@@ -236,13 +229,11 @@ int add_operator_to_gen_stat (int shmId, int semId){
 		printf("failed to detach stats shm\n");
 		return -1;
 	}
-	printf("end add_pause_to_gen_stat\n");	
 	return 0;
 }
 
 
 int update_service_stat (int shmId, int semId, char *service, int serviceProvided){
-	printf("start add_service_provided\n");
 	if (reserve_sem(semId, 0) == -1){
 		printf("failed to reserve stats shm sem\n");
 		return -1;
@@ -279,13 +270,11 @@ int update_service_stat (int shmId, int semId, char *service, int serviceProvide
 		printf("failed to detach stats shm\n");
 		return -1;
 	}
-	printf("end add_service_provided\n");
 	return 0;
 }
 
 //TODO criticita se il numero di utenti dovesse crescere
 int update_user_served_stat (int shmId, int semId, char *service, int nofUsers){
-	printf("start update_user_served_stat\n");
 	if (reserve_sem(semId, 0) == -1){
 		printf("failed to reserve stats shm sem\n");
 		return -1;
@@ -317,12 +306,10 @@ int update_user_served_stat (int shmId, int semId, char *service, int nofUsers){
 		printf("failed to detach stats shm\n");
 		return -1;
 	}
-	printf("end update_user_served_stat\n");
 	return 0;
 }
 
 int update_operator_seat_ratio (int shmId, int semId, char *service, int nofWorkerSeats){
-	printf("start update_operator_seat_ratio\n");
 
 	if (reserve_sem(semId, 0) == -1){
 		printf("failed to reserve sportelli stats shm sem\n");
@@ -356,13 +343,11 @@ int update_operator_seat_ratio (int shmId, int semId, char *service, int nofWork
 		printf("failed to detach sportelli stats shm\n");
 		return -1;
 	}
-	printf("end update_operator_seat_ratio\n");
 	return 0;
 }
 
 
 int update_waiting_time (int shmId, int semId, char *service, long elapsed){
-	printf("start update_av_waiting_time\n");
 	if (reserve_sem(semId, 0) == -1){
 		printf("failed to reserve stats shm sem\n");
 		return -1;
@@ -393,13 +378,11 @@ int update_waiting_time (int shmId, int semId, char *service, long elapsed){
 		printf("failed to detach stats shm\n");
 		return -1;
 	}
-	printf("end update_av_waiting_time\n");
 	return 0;
 }
 
 
 int update_service_duration (int shmId, int semId, char *service, int temp){
-	printf("start add_service_provided\n");
 	if (reserve_sem(semId, 0) == -1){
 		printf("failed to reserve stats shm sem\n");
 		return -1;
@@ -430,7 +413,6 @@ int update_service_duration (int shmId, int semId, char *service, int temp){
 		printf("failed to detach stats shm\n");
 		return -1;
 	}
-	printf("end add_service_provided\n");
 	return 0;
 }
 
@@ -466,7 +448,6 @@ int create_stats_file (char *dailyStats, char *extraDailyStats, char *operatorSp
 }
 
 int dump_daily_stats (char *filename, char *extraFilename, int shmId, int semId, int day){
-	printf("start dump_daily_stats\n");
 	FILE *file = fopen(filename, "a");
 	FILE *extraFile = fopen(extraFilename, "a");
 	if (file == NULL || extraFile == NULL){
@@ -510,13 +491,11 @@ int dump_daily_stats (char *filename, char *extraFilename, int shmId, int semId,
 	}
 	fclose(file);
 	fclose(extraFile);
-	printf("end dump_daily_stats\n");
 	return 0;
 }
 
 
 int dump_operator_daily_ratio (char *filename, int shmId, int semId, int day, int nofWorkerSeats){
-	printf("start dump_operator_daily_ratio\n");
 	FILE *file = fopen(filename, "a");
 	if (file == NULL){
 		printf("failed to open daily stats file\n");
@@ -551,13 +530,11 @@ int dump_operator_daily_ratio (char *filename, int shmId, int semId, int day, in
 		return -1;
 	}
 	fclose(file);
-	printf("end dump_operator_daily_ratio\n");
 	return 0;
 }
 
 
 int dump_total_stats (char *filename, char *extraFilename, int shmId, int semId){
-	printf("start dump_total_stats\n");
 	FILE *file = fopen(filename, "a");
 	FILE *extraFile = fopen(extraFilename, "a");
 	if (file == NULL || extraFile == NULL){
@@ -600,7 +577,5 @@ int dump_total_stats (char *filename, char *extraFilename, int shmId, int semId)
 	}
 	fclose(file);
 	fclose(extraFile);
-
-	printf("end dump_total_stats\n");
 	return 0;
 }

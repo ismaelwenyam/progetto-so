@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "simerr.h"
 #include "simulation_configuration.h"
@@ -106,7 +107,6 @@ int update_timeout(int semId, int d)
 
 int reset_explode(int semId)
 {
-    printf("Start reset_explode\n");
     if (reserve_sem(semId, 0) == -1)
     {
         printf("error reserving config sem\n");
@@ -128,13 +128,11 @@ int reset_explode(int semId)
         printf("error releasing config sem\n");
         err_exit(strerror(errno));
     }
-    printf("End reset_explode\n");
     return 0;
 }
 
 int update_explode(int semId, int count)
 {
-    printf("Start update_explode\n");
     if (reserve_sem(semId, 0) == -1)
     {
         printf("error reserving config sem\n");
@@ -182,39 +180,33 @@ int update_explode(int semId, int count)
         printf("error releasing config sem\n");
         err_exit(strerror(errno));
     }
-    printf("End update_explode\n");
     return 0;
 }
 
 int get_timeout(int semId)
 {
-    printf("start get_timeout\n");
 
     if (reserve_sem(semId, 0) == -1)
     {
         fprintf(stderr, "Error reserving config sem: %s\n", strerror(errno));
         err_exit("Failed to reserve semaphore");
     }
-    printf("Reserved config sem. semid: %d - semun: 0\n", semId);
 
     FILE *configFile = fopen("config_timout.conf", "r");
     if (configFile == NULL)
     {
         fprintf(stderr, "Error opening config_timeout file: %s\n", strerror(errno));
-        release_sem(semId, 0); 
+        release_sem(semId, 0);
     }
-    printf("Opened config_timeout file\n");
 
     int timeout = 0;
     char *line = NULL;
     size_t len = 0;
     ssize_t read;
     int lineNum = 0;
-    printf("Reading lines from config file...\n");
 
     while ((read = getline(&line, &len, configFile)) != -1)
     {
-        printf("Read line: '%s'\n", line);
         lineNum++;
 
         if (line[0] == '#')
@@ -231,7 +223,6 @@ int get_timeout(int semId)
         }
 
         timeout = atoi(value);
-        printf("Parsed timeout: %d\n", timeout);
     }
 
     free(line);
@@ -248,41 +239,33 @@ int get_timeout(int semId)
         fprintf(stderr, "Error releasing config sem: %s\n", strerror(errno));
         err_exit("Failed to release semaphore");
     }
-    printf("Released config sem. semid: %d - semun: 0\n", semId);
-
-    printf("End get_timeout\n");
     return timeout;
 }
 
 int get_explode(int semId)
 {
-    printf("Start get_explode\n");
     if (reserve_sem(semId, 0) == -1)
     {
         fprintf(stderr, "Error reserving config sem: %s\n", strerror(errno));
         err_exit("Failed to reserve semaphore");
     }
-    printf("Reserved config sem. semid: %d - semun: 0\n", semId);
 
     FILE *configFile = fopen("config_explode.conf", "r");
     if (configFile == NULL)
     {
         fprintf(stderr, "Error opening config_timeout file: %s\n", strerror(errno));
-        release_sem(semId, 0); 
+        release_sem(semId, 0);
         return -1;
     }
-    printf("Opened config_explode file\n");
 
     int explode = 0;
     char *line = NULL;
     size_t len = 0;
     ssize_t read;
     int lineNum = 0;
-    printf("Reading lines from config file...\n");
 
     while ((read = getline(&line, &len, configFile)) != -1)
     {
-        printf("Read line: '%s'\n", line);
         lineNum++;
 
         if (line[0] == '#')
@@ -299,7 +282,6 @@ int get_explode(int semId)
         }
 
         explode = atoi(value);
-        printf("Parsed explode: %d\n", explode);
     }
 
     free(line);
@@ -316,7 +298,5 @@ int get_explode(int semId)
         fprintf(stderr, "Error releasing config sem: %s\n", strerror(errno));
         err_exit("Failed to release semaphore");
     }
-    printf("Released config sem. semid: %d - semun: 0\n", semId);
-    printf("End get_explode\n");
     return explode;
 }

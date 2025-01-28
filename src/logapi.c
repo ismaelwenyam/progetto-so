@@ -4,6 +4,9 @@
 
 #include "logapi.h"
 
+/*
+	source: @chatgpt
+ */
 void log_time() {
     struct timeval tv;
     struct tm* tm_info;
@@ -20,24 +23,29 @@ void log_time() {
            tv.tv_usec / 1000);
 }
 
+/*
+	source: @stackoverflow
+ */
 void slog(int group, const char *format, ...) {
+	#ifdef DEBUG
 	log_time();
-	
-	va_list args;
-    	va_start(args, format);
-    
-    	char buffer[256];
-    	vsprintf(buffer, format, args);
-    	va_end(args);
 
-	if (group == DIRETTORE)
-		printf(ANSI_COLOR_CYAN "%s" ANSI_COLOR_RESET "\n", buffer);	
-	else if (group == EROGATORE)
-		printf(ANSI_COLOR_GREEN "%s" ANSI_COLOR_RESET "\n", buffer);
-	else if (group == SPORTELLO)
-		printf(ANSI_COLOR_YELLOW "%s" ANSI_COLOR_RESET "\n", buffer);
-	else if (group == OPERATORE)
-		printf(ANSI_COLOR_BLUE "%s" ANSI_COLOR_RESET "\n", buffer);
-	else
-		printf(ANSI_COLOR_MAGENTA "%s" ANSI_COLOR_RESET "\n", buffer);
+	va_list args;
+	va_start(args, format);
+    
+	char buffer[256];
+	vsnprintf(buffer, sizeof(buffer), format, args);
+	va_end(args);
+
+	const char *color;
+	switch (group) {
+		case DIRETTORE:  color = ANSI_COLOR_CYAN;    break;
+		case EROGATORE:  color = ANSI_COLOR_GREEN;   break;
+		case SPORTELLO:  color = ANSI_COLOR_YELLOW;  break;
+		case OPERATORE:  color = ANSI_COLOR_BLUE;    break;
+		default:         color = ANSI_COLOR_MAGENTA; break;
+	}
+
+	printf("%s%s%s\n", color, buffer, ANSI_COLOR_RESET);
+	#endif
 }
