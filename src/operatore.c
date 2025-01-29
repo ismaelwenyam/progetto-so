@@ -280,9 +280,14 @@ int main(int argc, char **argv)
 					slog(OPERATORE, "operatore.pid.%d.reserve_sem.operatore sem.semun:2.failed", getpid());
 					err_exit(strerror(errno));
 				}
-				if (errno == EINTR)
+				if (errno == EIDRM)
 				{
 					slog(OPERATORE, "operatore.child.pid.%d.reserve_sem.deskSemId: %d - deskSemun: %d.failed due eod", getpid(), deskSemId, deskSemun);
+					continue;
+				}
+				if (errno == EINTR)
+				{
+					slog(OPERATORE, "operatore.child.pid.%d.reserve_sem.deskSemId: %d - deskSemun: %d.failed", getpid(), deskSemId, deskSemun);
 					exit(0);
 				}
 				slog(OPERATORE, "operatore.child.pid.%d.reserve_sem.deskSemId: %d - deskSemun: %d.failed", getpid(), deskSemId, deskSemun);
@@ -358,8 +363,11 @@ int main(int argc, char **argv)
 					slog(OPERATORE, "operatore.child.pid.%d.msgrcv.service request.failed!", getpid());
 					if (release_sem(deskSemId, deskSemun) == -1)
 					{
-						slog(OPERATORE, "operatore.child.pid.%d.release_sem.deskSemId: %d - deskSemun: %d", getpid(), deskSemId, deskSemun);
-						err_exit(strerror(errno));
+						if (errno != EINVAL)
+						{
+							slog(OPERATORE, "operatore.child.pid.%d.release_sem.deskSemId: %d - deskSemun: %d", getpid(), deskSemId, deskSemun);
+							err_exit(strerror(errno));
+						}
 					}
 					slog(OPERATORE, "operatore.child.pid.%d.release_sem.sportello.%d.semun.%d", getpid(), deskSemId, deskSemun);
 					continue;
@@ -373,8 +381,11 @@ int main(int argc, char **argv)
 				{
 					if (release_sem(deskSemId, deskSemun) == -1)
 					{
-						slog(OPERATORE, "operatore.child.pid.%d.release_sem.deskSemId: %d - deskSemun: %d", getpid(), deskSemId, deskSemun);
-						err_exit(strerror(errno));
+						if (errno != EINVAL)
+						{
+							slog(OPERATORE, "operatore.child.pid.%d.release_sem.deskSemId: %d - deskSemun: %d", getpid(), deskSemId, deskSemun);
+							err_exit(strerror(errno));
+						}
 					}
 					slog(OPERATORE, "operatore.child.pid.%d.released.sportello.%d.semun.%d", getpid(), deskSemId, deskSemun);
 
@@ -443,10 +454,9 @@ int main(int argc, char **argv)
 					slog(OPERATORE, "operatore.child.pid.%d.failed to respond to service request", getpid());
 					err_exit(strerror(errno));
 				}
-				
 
 				takePause = rand() % 11;
-				slog(OPERATORE, "operatore.child.pid.%d.takePause: %d",getpid(), takePause);
+				slog(OPERATORE, "operatore.child.pid.%d.takePause: %d", getpid(), takePause);
 				if (nofPause > 0 && takePause > 5)
 				{
 
@@ -485,8 +495,11 @@ int main(int argc, char **argv)
 
 					if (release_sem(deskSemId, deskSemun) == -1)
 					{
-						slog(OPERATORE, "operatore.child.pid.%d.release_sem.deskSemId: %d - deskSemun: %d", getpid(), deskSemId, deskSemun);
-						err_exit(strerror(errno));
+						if (errno != EINVAL)
+						{
+							slog(OPERATORE, "operatore.child.pid.%d.release_sem.deskSemId: %d - deskSemun: %d", getpid(), deskSemId, deskSemun);
+							err_exit(strerror(errno));
+						}
 					}
 					slog(OPERATORE, "operatore.child.pid.%d.released.sportello.%d.semun.%d", getpid(), deskSemId, deskSemun);
 
@@ -505,8 +518,11 @@ int main(int argc, char **argv)
 			}
 			if (release_sem(deskSemId, deskSemun) == -1)
 			{
-				slog(OPERATORE, "operatore.child.pid.%d.release_sem.deskSemId: %d - deskSemun: %d", getpid(), deskSemId, deskSemun);
-				err_exit(strerror(errno));
+				if (errno != EINVAL)
+				{
+					slog(OPERATORE, "operatore.child.pid.%d.release_sem.deskSemId: %d - deskSemun: %d", getpid(), deskSemId, deskSemun);
+					err_exit(strerror(errno));
+				}
 			}
 			slog(OPERATORE, "operatore.child.pid.%d.released.sportello.%d.semun.%d", getpid(), deskSemId, deskSemun);
 		}
@@ -526,7 +542,8 @@ int main(int argc, char **argv)
 
 		if (reserve_sem(operatoreSemId, 1) == -1)
 		{
-			if (errno == EIDRM){
+			if (errno == EIDRM)
+			{
 				delete_ipc_resources(utenteOperatoreSemId, "sem");
 				exit(EXIT_SUCCESS);
 			}

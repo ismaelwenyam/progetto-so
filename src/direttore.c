@@ -542,8 +542,6 @@ int main(int argc, char **argv)
 			}
 		}
 		slog(DIRETTORE, "direttore.pid.%d.all operatori.updated sportelli shm", getpid());
-		print_services_in_shm(servicesShmId, servicesShmSemId);
-		print_sportelli_in_shm(sportelliShmId, sportelliShmSemId, configuration.nofWorkerSeats);
 
 		// ensures that erogatore start working on start of day
 		slog(DIRETTORE, "direttore.pid.%d.releasing erogatore to start day", getpid());

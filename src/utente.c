@@ -283,7 +283,7 @@ int main(int argc, char **argv)
 
 			clock_gettime(CLOCK_MONOTONIC, &end);
 			elapsedTime = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
-			slog(UTENTE, "utente.pid.%d.elapsed time: %.2ld", getpid(), elapsedTime);
+			elapsedTime = (elapsedTime * 100) / 1e9;
 			slog(UTENTE, "utente.pid.%d.reserve_sem.%d.semun.%d", getpid(), sportello.workerDeskSemId, sportello.workerDeskSemun);
 			msgBuff.mtype = sportello.operatorPid;
 			msgBuff.payload.senderPid = getpid();

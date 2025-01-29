@@ -94,15 +94,35 @@ int print_stats (int shmId, int semId, int ssshmId, int sssemId, int day, int no
 	printf("%22d %20.2f\n", statisticsPtr->activeOperatorsDaily,
 					statisticsPtr->averageBreaksDaily);
 	
+	char *services[6] = {"", "", "", "", "", ""};
 	puts("");
 	printf("**********************************************************************************\n");
 	printf("\t\t\t\t\t\tOPERATOR TO SPORTELLO RATIO - day: %d\n", day);
 	printf("**********************************************************************************\n");
-	printf("%s %s %s %s\n", "Sportello", "Pid", "Service", "Ratio");
-	for (int i = 0; i < nofWorkerSeats; i++){
-		printf("%9d %3d %s %5.2f\n", i+1, sportelliStatsPtr[i].pid, sportelliStatsPtr[i].service, sportelliStatsPtr[i].ratio);
-	}
-	
+	printf("%s %s\n", "Service", "Ratio");
+	for (int i = 0; i < nofWorkerSeats; i++) {
+        int alreadyPrinted = 0;
+
+        // Controlla se il servizio è già stato stampato
+        for (int j = 0; j < 6; j++) {
+            if (strcmp(sportelliStatsPtr[i].service, services[j]) == 0) {
+                alreadyPrinted = 1;
+                break;
+            }
+        }
+        // Se non è stato stampato, stampalo e salvalo nell'array
+        if (!alreadyPrinted) {
+            printf("%7s %5.2f\n", sportelliStatsPtr[i].service, sportelliStatsPtr[i].ratio);
+            // Trova uno slot libero nell'array
+            for (int j = 0; j < 6; j++) {
+                if (strcmp(services[j], "") == 0) {
+                    services[j] = sportelliStatsPtr[i].service;
+                    break;
+                }
+            }
+        }
+    }
+
 
 	puts("");
 	printf("**********************************************************************************\n");

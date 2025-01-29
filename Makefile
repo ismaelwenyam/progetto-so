@@ -13,11 +13,11 @@ all: $(EXEC)
 debug: 
 	$(MAKE) DEBUG=1
 
-# Regole generiche per compilare file .c in file .o
+# compilazione file .c in file .o
 src/%.o: src/%.c
 	$(CC) $(INCLUDES) $(CFLAGS) -c $< -o $@
 
-# Link degli eseguibili
+# link eseguibili
 direttore: src/direttore.o src/simulation_configuration.o src/semapi.o src/simerr.o src/logapi.o src/utils.o src/simulation_stats_api.o
 	$(CC) -o $@ $^
 

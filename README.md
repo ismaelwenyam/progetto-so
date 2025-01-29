@@ -6,8 +6,7 @@ progetto-so/
 ├── Makefile
 ├── config_explode.conf
 ├── config_timout.conf
-├── progetto_sso_design.drawio
-├── relazione_so.odt
+├── relazione.pdf
 ├── simulation_configuration.conf
 ├── include/
 │   ├── logapi.h
@@ -36,7 +35,7 @@ progetto-so/
     └── utils.c
 ```
 
-# How to run simulation guided
+# How to run simulation
 In order to start the simulation you can either use the simulation runner, which guides you in the process of running the simulation, just run
 ```plaintext
 ./sim_runner.sh
@@ -52,6 +51,15 @@ Menu principale:
 6. Esci
 Seleziona un'opzione: 
 ```
+* Option 4 executes make clean, than make and starts the simulation
+* Option 5 executes make clean, than make debug and starts the simulation
+
+## How to add users
+In order to add users to the simulation just run 
+```plaintext
+./add_users 
+```
+in a new terminal, under project directory.
 
 # Manual 
 ### Generate executables
@@ -61,6 +69,11 @@ Place yourself in the working directory of the project and run
 make
 ```
 This will generate executables.
+In order to enable logs run 
+```plaintext
+make debug
+```
+This run make with -DDEBUG -g flags.
 
 ### Edit simulation parameters
 
