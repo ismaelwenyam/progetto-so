@@ -272,7 +272,6 @@ int main(int argc, char **argv)
 			}
 			slog(OPERATORE, "operatore.child.pid.%d.reserving sportello.deskSemId: %d.deskSemun: %d", getpid(), deskSemId, deskSemun);
 
-			// TODO cosa fare se l'operarore in fila e finisce la giornata.
 			if (reserve_sem(deskSemId, deskSemun) == -1)
 			{
 				if (release_sem(operatoreSemId, 2) == -1)
@@ -306,7 +305,6 @@ int main(int argc, char **argv)
 			if (!sportelloTaken)
 			{
 				slog(OPERATORE, "operatore.child.pid.%d.sportello.%d.semun.%d.not available at the moment", getpid(), deskSemId, deskSemun);
-				// TODO accedere alla memoria condivisa dei sportelli ed aggiornare l'operatorId
 				if (reserve_sem(sportelliShmSemId, 0) == -1)
 				{
 					slog(OPERATORE, "operatore.child.pid.%d.reserve_sem.sportelli shm sem.failed", getpid());
@@ -412,7 +410,6 @@ int main(int argc, char **argv)
 						slog(OPERATORE, "operatore.child.pid.%d.failed to respond to service request", getpid());
 						err_exit(strerror(errno));
 					}
-					// TODO servizio non fornito
 					continue;
 				}
 
@@ -456,11 +453,10 @@ int main(int argc, char **argv)
 				}
 
 				takePause = rand() % 11;
-				slog(OPERATORE, "operatore.child.pid.%d.takePause: %d", getpid(), takePause);
+				slog(OPERATORE, "operatore.child.pid.%d.taking pause: %s.remains: %d", getpid(), takePause > 5 ? "true" : "false", nofPause - 1);
 				if (nofPause > 0 && takePause > 5)
 				{
 
-					// TODO notificare all'utente pause e aggiornare sportelli
 					if (reserve_sem(sportelliShmSemId, 0) == -1)
 					{
 						slog(OPERATORE, "operatore.child.pid.%d.reserve_sem.sportelli shm sem.failed", getpid());
@@ -509,7 +505,6 @@ int main(int argc, char **argv)
 						err_exit(strerror(errno));
 					}
 					nofPause--;
-					slog(OPERATORE, "operatore.child.pid.%d.taking pause.remains %d pauses", getpid(), nofPause);
 					if (add_pause_stat(statisticsShmId, statsShmSemId) == -1)
 					{
 						slog(OPERATORE, "operatore.child.pid.%d.failed to update pause stats", getpid());

@@ -1,20 +1,17 @@
 #!/bin/bash
 
-EDIT_CONFIG_SCRIPT="edit_config.sh" # Nome dello script per modificare i parametri
+EDIT_CONFIG_SCRIPT="edit_config.sh"
 
-# Funzione per eseguire la build
 run_build() {
     echo "Eseguendo la build..."
     make
 }
 
-# Funzione per eseguire la clean
 run_clean() {
     echo "Eseguendo la pulizia..."
     make clean
 }
 
-# Funzione per modificare i parametri di configurazione
 edit_config() {
     if [ -f "$EDIT_CONFIG_SCRIPT" ]; then
         bash "$EDIT_CONFIG_SCRIPT"
@@ -23,29 +20,41 @@ edit_config() {
     fi
 }
 
-# Funzione per avviare la simulazione
 run_simulation() {
-    run_clean
-    echo "Eseguendo la build e avviando la simulazione..."
-    make && ./direttore
+    ./direttore
 }
 
-# Funzione per avviare la simulazione con logs
+run_simulation_clean() {
+    run_clean
+    echo "Eseguendo la build e avviando la simulazione..."
+    make && clear && ./direttore
+}
+
 run_simulation_verbose() {
     run_clean
     echo "Eseguendo la build e avviando la simulazione con logs..."
-    make debug && ./direttore
+    make debug && clear && ./direttore
 }
 
-# Menu principale
+show_ipc_resources () {
+    ipcs
+}
+
+clear_console () {
+    clear
+}
+
 while true; do
     echo "Menu principale:"
-    echo "1. Eseguire la build"
+    echo "1. Eseguire la compilazione"
     echo "2. Eseguire la clean"
-    echo "3. Modificare i parametri di configurazione"
-    echo "4. Avviare la simulazione"
-    echo "5. Avviare la simulazione - verbose"
-    echo "6. Esci"
+    echo "3. Avviare la simulazione"
+    echo "4. Modificare i parametri di configurazione"
+    echo "5. Avviare la simulazione - con make clean"
+    echo "6. Avviare la simulazione - verbose con (logs.txt)"
+    echo "7. Mostra risorse ipc"
+    echo "8. Pulire console"
+    echo "9. Esci"
     read -p "Seleziona un'opzione: " choice
 
     case $choice in
@@ -56,15 +65,24 @@ while true; do
             run_clean
             ;;
         3)
-            edit_config
-            ;;
-        4)
             run_simulation
             ;;
+        4)
+            edit_config
+            ;;
         5)
-            run_simulation_verbose
+            run_simulation_clean
             ;;
         6)
+            run_simulation_verbose
+            ;;
+        7)
+            show_ipc_resources
+            ;;
+        8)
+            clear_console
+            ;;
+        9)
             clear
             exit 0
             ;;

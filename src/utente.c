@@ -95,7 +95,7 @@ int main(int argc, char **argv)
 		if (servicesList[i] == NULL)
 		{
 			slog(UTENTE, "utente.pid.%d.failed to allocate mem for service", getpid());
-		} 
+		}
 	}
 	TicketRequestAdt ticketRequest;
 	TicketAdt ticket;
@@ -103,7 +103,7 @@ int main(int argc, char **argv)
 	ServizioAdtPtr servicesPtr;
 	SportelloAdt sportello;
 	struct timespec start, end;
-	long elapsedTime;
+	long elapsedTimeNano;
 	bool endOfSimulation = false;
 	slog(UTENTE, "utente.pid.%d.completed initialization", getpid());
 	if (release_sem(utenteSemId, 0) == -1)
@@ -190,7 +190,6 @@ int main(int argc, char **argv)
 		// scelta della lista di servizi di cui l'utente necessita
 		requests = rand() % nRequests + 1;
 		int notAvailableServicesCount = 0;
-		slog(UTENTE, "utente.pid.%d.services number requested: %d", getpid(), requests);
 		for (int i = 0, j = 0; i < requests; i++)
 		{
 			int serviceChoice = rand() % NUMBER_OF_SERVICES;
@@ -218,11 +217,7 @@ int main(int argc, char **argv)
 			err_exit(strerror(errno));
 		}
 
-		slog(UTENTE, "utente.pid.%d.desired services.requests: %d", getpid(), requests);
-		for (int i = 0; i < requests; i++)
-		{
-			slog(UTENTE, "index: %d - %s", i, servicesList[i]);
-		}
+		slog(UTENTE, "utente.pid.%d.desired number of services: %d", getpid(), requests);
 
 		// richiedere tickets per i servizi
 		for (int i = 0; i < requests; i++)
@@ -234,7 +229,7 @@ int main(int argc, char **argv)
 			if (msgsnd(ticketsMsgQueueId, &msgBuff, sizeof(msgBuff) - sizeof(long), 0) == -1)
 			{
 				slog(UTENTE, "utente.pid.%d.msgsnd.ticket request.failed!", getpid());
-				if (errno == EIDRM)
+				if (errno == EIDRM || errno == EINVAL)
 				{
 					slog(UTENTE, "utente.pid.%d.tickets msg queue removed.exiting", getpid());
 					release_sem(utenteSemId, 2);
@@ -247,7 +242,8 @@ int main(int argc, char **argv)
 			slog(UTENTE, "utente.pid.%d.waiting ticket for %s", getpid(), servicesList[i]);
 			if (msgrcv(ticketsMsgQueueId, &ticketRequest, sizeof(ticketRequest) - sizeof(long), getpid(), 0) == -1)
 			{
-				if (errno == EIDRM) {
+				if (errno == EIDRM || errno == EINVAL)
+				{
 					slog(UTENTE, "utente.pid.%d.tickets msg queue removed.exiting", getpid());
 					release_sem(utenteSemId, 2);
 					exit(EXIT_SUCCESS);
@@ -282,17 +278,24 @@ int main(int argc, char **argv)
 			}
 
 			clock_gettime(CLOCK_MONOTONIC, &end);
-			elapsedTime = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
-			elapsedTime = (elapsedTime * 100) / 1e9;
+			elapsedTimeNano = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
+			double elapsedTimeMin = elapsedTimeNano / (double)configuration.nNanoSecs;
+			slog(UTENTE, "utente.pid.%d.elapsed time: %.2ld", getpid(), elapsedTimeMin);
 			slog(UTENTE, "utente.pid.%d.reserve_sem.%d.semun.%d", getpid(), sportello.workerDeskSemId, sportello.workerDeskSemun);
 			msgBuff.mtype = sportello.operatorPid;
 			msgBuff.payload.senderPid = getpid();
 			strcpy(msgBuff.payload.msg, servicesList[i]);
 			msgBuff.payload.temp = ticketRequest.ticket.se.temp;
-			msgBuff.payload.elapsed = elapsedTime;
+			msgBuff.payload.elapsed = elapsedTimeMin;
 			slog(UTENTE, "utente.pid.%d.sending service: %s request to operatore", getpid(), msgBuff.payload.msg);
 			if (msgsnd(serviceMsgqId, &msgBuff, sizeof(msgBuff) - sizeof(long), 0) == -1)
 			{
+				if (errno == EIDRM || errno == EINVAL)
+				{
+					slog(UTENTE, "utente.pid.%d.service msg queue removed.exiting", getpid());
+					release_sem(utenteSemId, 2);
+					exit(EXIT_SUCCESS);
+				}
 				slog(UTENTE, "utente.pid.%d.msgsnd.service msgq to operatore %d.failed!", getpid(), sportello.operatorPid);
 				continue;
 			}
@@ -303,7 +306,8 @@ int main(int argc, char **argv)
 				slog(UTENTE, "utente.pid.%d.waiting response from operatore.pid.%d", getpid(), sportello.operatorPid);
 				if (msgrcv(serviceMsgqId, &msgBuff, sizeof(msgBuff) - sizeof(long), getpid(), 0) == -1)
 				{
-					if (errno == EIDRM){
+					if (errno == EIDRM || errno == EINVAL)
+					{
 						release_sem(sportello.workerDeskSemId, sportello.workerDeskSemun);
 						release_sem(utenteSemId, 2);
 						exit(EXIT_SUCCESS);
@@ -372,8 +376,8 @@ int main(int argc, char **argv)
 		}
 		days++;
 	}
-	// TODO also free in errors
-	for (int i = 0; i < nRequests; i++){
+	for (int i = 0; i < nRequests; i++)
+	{
 		free(servicesList[i]);
 	}
 	free(servicesList);

@@ -43,16 +43,20 @@ In order to start the simulation you can either use the simulation runner, which
 You will be showed this window where you can choose the actions to do.
 ```plaintext
 Menu principale:
-1. Eseguire la build
+1. Eseguire la compilazione
 2. Eseguire la clean
-3. Modificare i parametri di configurazione
-4. Avviare la simulazione
-5. Avviare la simulazione - verbose
-6. Esci
+3. Avviare simulazione
+4. Modificare i parametri di configurazione
+5. Avviare la simulazione - con make clean
+6. Avviare la simulazione - verbose con (logs.txt)
+7. Mostra risorse ipc
+9. Pulire console
+8. Esci
 Seleziona un'opzione: 
 ```
+* Option 3 simply starts the simulation, after step 1 and 2 have been done.
 * Option 4 executes make clean, than make and starts the simulation
-* Option 5 executes make clean, than make debug and starts the simulation
+* Option 5 executes remove of previous logs.txt file, make clean, than make debug and starts the simulation
 
 ## How to add users
 In order to add users to the simulation just run 

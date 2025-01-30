@@ -36,4 +36,4 @@ operatore: src/operatore.o src/simulation_configuration.o src/semapi.o src/simer
 add_user: src/add_users.o src/simerr.o
 	$(CC) -o $@ $^
 clean:
-	rm -f $(EXEC) src/*.o *.csv
+	rm -f $(EXEC) src/*.o *.csv logs.txt

@@ -214,7 +214,7 @@ int main(int argc, char **argv)
 		days++;
 	}
 	slog(SPORTELLO, "sportello.pid.%d.delete ipc resources", getpid());
-	// delete_ipc_resources(operatoreSportelloSemId, "sem");
+	delete_ipc_resources(operatoreSportelloSemId, "sem");
 	slog(SPORTELLO, "sportello.pid.%d.deleted ipc resources", getpid());
 	exit(EXIT_SUCCESS);
 }

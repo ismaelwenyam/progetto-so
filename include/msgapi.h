@@ -31,7 +31,7 @@ struct payload {
 	pid_t senderPid;
 	char msg[MSG_LEN];
 	int temp;
-	long elapsed;
+	double elapsed;
 };
 
 typedef struct msgBuff MsgBuff;

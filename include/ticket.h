@@ -8,14 +8,16 @@
 #define MSG_QUEUE_KEY 11111
 
 typedef struct ticket TicketAdt;
-struct ticket {
+struct ticket
+{
 	ServizioAdt se;
 	bool eod;
 	SportelloAdt sp;
 };
 
 typedef struct ticketRequest TicketRequestAdt, *TicketRequestAdtPtr;
-struct ticketRequest {
+struct ticketRequest
+{
 	long mtype;
 	TicketAdt ticket;
 };

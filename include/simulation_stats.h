@@ -17,10 +17,8 @@ struct serviceStat {
 	double averageWaitingTimeDaily;			/* il tempo medio di attesa degli utenti nella giornata */
 	float averageServiceDurationSimulation;			/* il tempo medio di erogazione dei servizi nella simulazione */
 	float averageServiceDurationDaily;			/* il tempo medio di erogazione dei servizi nella giornata */
-	//Not to be printed
+	//Non da stampare
 	int usersServedDaily;
-	//long waitingTimeDaily;
-	//int servicesProvidedDaily;
 };
 	
 
@@ -49,7 +47,7 @@ int update_service_stat (int shmId, int semId, char *service, int serviceProvide
 int update_service_duration (int shmId, int semId, char *service, int temp);
 int update_user_served_stat (int shmId, int semId, char *service, int nofUsers);
 int update_operator_seat_ratio (int shmId, int semId, char *service, int nofWorkerSeats);
-int update_waiting_time (int shmId, int semId, char *service, long elapsed);
+int update_waiting_time (int shmId, int semId, char *service, double elapsed);
 int create_stats_file (char *filename, char *extraFilename, char *opRatioFilename, char *totalFilename, char *extraTotalFilename);
 int dump_daily_stats(char *filename, char *extraFilename, int shmId, int semId, int day);
 int dump_operator_daily_ratio (char *filename, int shmId, int semId, int day, int nofWorkerSeats);

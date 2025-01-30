@@ -71,10 +71,23 @@ int main(int argc, char **argv)
 	}
 
 	ConfigurationAdt configuration = get_config();
-	if (configuration.simDuration <= 0)
+	if (configuration.simDuration < 1)
 	{
-		slog(DIRETTORE, "direttore.pid.%d.simDuration = %d.aborting simulation", getpid(), configuration.simDuration);
-		err_exit("simDuration must be greater than 0");
+		slog(DIRETTORE, "direttore.pid.%d.sim_duration = %d.aborting simulation", getpid(), configuration.simDuration);
+		delete_ipc_resources(configurationSemId, "sem");
+		err_exit("sim_duration must be greater than 0");
+	}
+	if (configuration.nofWorkerSeats < 1)
+	{
+		slog(DIRETTORE, "direttore.pid.%d.nof_worker_seats = %d.aborting simulation", getpid(), configuration.nofWorkerSeats);
+		delete_ipc_resources(configurationSemId, "sem");
+		err_exit("nof_worker_seats must be greater than 0");
+	}
+	if (configuration.nofWorkers < 1)
+	{
+		slog(DIRETTORE, "direttore.pid.%d.nof_workers = %d.aborting simulation", getpid(), configuration.nofWorkers);
+		delete_ipc_resources(configurationSemId, "sem");
+		err_exit("nof_workers must be greater than 0");
 	}
 	print_config(configuration);
 	if (reset_explode(configurationSemId) == -1)
@@ -144,7 +157,7 @@ int main(int argc, char **argv)
 		slog(DIRETTORE, "direttore.pid.%d.semget.operatore_sync_sem.failed", getpid());
 		err_exit(strerror(errno));
 	}
-	slog(DIRETTORE, "direttore.pid.%d.creating operatore_sync_sem.ok!", getpid());
+	slog(DIRETTORE, "direttore.pid.%d.creating operatore_sync_sem.ok!.id: %d", getpid(), operatoreSemId);
 	if (init_sem_in_use(operatoreSemId, 0) == -1 || init_sem_in_use(operatoreSemId, 1) == -1 || init_sem_in_use(operatoreSemId, 2) == -1 || init_sem_in_use(operatoreSemId, 3) == -1 || init_sem_in_use(operatoreSemId, 4) == -1)
 	{
 		slog(DIRETTORE, "direttore.pid.%d.init_sem_in_use(5).operatoresem.failed!", getpid());
@@ -348,14 +361,16 @@ int main(int argc, char **argv)
 	{
 		if (reserve_sem(operatoreSemId, 0) == -1)
 		{
-			// TODO handle errors
+			slog(DIRETTORE, "direttore.pid.%d.reserve_sem.operatore_sem(0)", getpid());
+			err_exit(strerror(errno));
 		}
 	}
 	// ensures that erogatore have completed init
 	slog(DIRETTORE, "direttore.pid.%d.waiting erogatore to complete init", getpid());
 	if (reserve_sem(erogatoreSemId, 0) == -1)
 	{
-		// TODO handle errors
+		slog(DIRETTORE, "direttore.pid.%d.reserve_sem.erogatore_sem(0)", getpid());
+		err_exit(strerror(errno));
 	}
 	// ensures that users have completed init
 	slog(DIRETTORE, "direttore.pid.%d.waiting users to complete init", getpid());
@@ -363,7 +378,8 @@ int main(int argc, char **argv)
 	{
 		if (reserve_sem(utenteSemId, 0) == -1)
 		{
-			// TODO handle errors
+			slog(DIRETTORE, "direttore.pid.%d.reserve_sem.utente_sem(0)", getpid());
+			err_exit(strerror(errno));
 		}
 	}
 	int days = 0;
@@ -532,12 +548,14 @@ int main(int argc, char **argv)
 		slog(DIRETTORE, "direttore.pid.%d.operatori started day", getpid());
 
 		slog(DIRETTORE, "direttore.pid.%d.waiting operatori to update sportelli", getpid());
+
 		// ensures that workers updates sportelli shm
 		for (int i = 0; i < configuration.nofWorkers; i++)
 		{
+
 			if (reserve_sem(operatoreSemId, 2) == -1)
 			{
-				slog(DIRETTORE, "direttore.pid.%d.release_sem.operatore sem.failed!", getpid());
+				slog(DIRETTORE, "direttore.pid.%d.reserve_sem(2).operatore sem.failed!", getpid());
 				err_exit(strerror(errno));
 			}
 		}
@@ -569,7 +587,7 @@ int main(int argc, char **argv)
 			}
 		}
 
-		slog(DIRETTORE, "direttore.pid.%d.sleeping 10s...", getpid());
+		slog(DIRETTORE, "direttore.pid.%d.sleeping...", getpid());
 		nanosleep(&ts, NULL);
 		slog(DIRETTORE, "direttore.pid.%d.wake up", getpid());
 		if (update_timeout(configurationSemId, days + 1) == -1)
@@ -613,19 +631,20 @@ int main(int argc, char **argv)
 		}
 		slog(DIRETTORE, "direttore.pid.%d.notified worker of eod", getpid());
 		slog(DIRETTORE, "direttore.pid.%d.waiting operatori to complete day...", getpid());
+
 		// ensure that workers has completed the day
 		for (int i = 0; i < configuration.nofWorkers; i++)
 		{
 			if (reserve_sem(operatoreSemId, 4) == -1)
 			{
-				slog(DIRETTORE, "direttore.pid.%d.reserve_sem.operatore sem.failed!", getpid());
+				slog(DIRETTORE, "direttore.pid.%d.reserve_sem(4).operatore sem.failed!", getpid());
 				err_exit(strerror(errno));
 			}
 		}
 		slog(DIRETTORE, "direttore.pid.%d.operatori completed day", getpid());
 
 		// ensure that users has completed the day
-		slog(DIRETTORE, "direttore.pid.%d.waiting users at desk to complete day", getpid());
+		slog(DIRETTORE, "direttore.pid.%d.waiting users to complete day", getpid());
 		for (int i = 0; i < users; i++)
 		{
 			if (reserve_sem(utenteSemId, 2) == -1)
@@ -707,6 +726,11 @@ int main(int argc, char **argv)
 			slog(DIRETTORE, "direttore.pid.%d.released config sem.semid: %d - semun: 1", getpid(), configurationSemId);
 
 			break;
+		}
+		if (reset_explode(configurationSemId) == -1)
+		{
+			slog(DIRETTORE, "direttore.pid.%d.failed to reset config_explode", getpid());
+			err_exit(strerror(errno));
 		}
 
 		if (release_sem(configurationSemId, 1) == -1)

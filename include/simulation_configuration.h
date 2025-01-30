@@ -1,7 +1,8 @@
 #ifndef SIMULATION_CONFIG_H
 #define SIMULATION_CONFIG_H
 typedef struct configuration ConfigurationAdt;
-struct configuration {
+struct configuration
+{
 	int nofWorkerSeats;
 	int nofWorkers;
 	int nofUsers;
@@ -15,12 +16,11 @@ struct configuration {
 	int nNewUsers;
 };
 
-
-ConfigurationAdt get_config ();
-int update_timeout (int semId, int d);
-int update_explode (int semId, int count);
-int get_timeout (int semId);
-int get_explode (int semId);
+ConfigurationAdt get_config();
+int update_timeout(int semId, int d);
+int update_explode(int semId, int count);
+int get_timeout(int semId);
+int get_explode(int semId);
 int reset_explode(int semId);
 
 #endif
