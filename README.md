@@ -2,8 +2,12 @@
 
 ```plaintext
 progetto-so/
+├── .gitignore
 ├── README.md
 ├── Makefile
+├── Dockerfile
+├── edit_config.sh
+├── sim_runner.sh
 ├── config_explode.conf
 ├── config_timout.conf
 ├── relazione.pdf
